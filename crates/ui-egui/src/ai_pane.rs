@@ -76,7 +76,29 @@ const ACTIONS: &[(&str, &str, &str)] = &[
 /// The pane's own text in English or Spanish. It stays out of the language catalogs on purpose: they
 /// must be complete in every language, and this pane is the fork's, not upstream's.
 fn tx(en: &'static str, es: &'static str) -> &'static str {
-    if crate::i18n::current().code() == "es" { es } else { en }
+    note(if crate::i18n::current().code() == "es" { es } else { en })
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Every text the pane drew on this thread, so the untranslated-text audit
+    /// (`i18n::audit`) knows these are the pane's own and not missing `tl!`.
+    static DRAWN: std::cell::RefCell<std::collections::HashSet<&'static str>> = Default::default();
+}
+
+/// `s`, remembered as the pane's own text in tests.
+fn note(s: &'static str) -> &'static str {
+    #[cfg(test)]
+    DRAWN.with_borrow_mut(|d| {
+        d.insert(s);
+    });
+    s
+}
+
+/// Whether the pane drew `text` (the audit exempts it from `tl!`).
+#[cfg(test)]
+pub(crate) fn drew(text: &str) -> bool {
+    DRAWN.with_borrow(|d| d.contains(text))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -95,10 +117,10 @@ impl Agent {
     }
 
     fn name(self) -> &'static str {
-        match self {
+        note(match self {
             Agent::Claude => "Claude",
             Agent::Codex => "Codex",
-        }
+        })
     }
 }
 
