@@ -90,12 +90,12 @@ fn reading_toolbar(app: &mut WordApp, ui: &mut Ui, t: Tokens) {
         });
 }
 
-/// Whether the selection is a SmartArt graphic WordCraft can edit (so SmartArt Design is shown).
+/// Whether the selection is a SmartArt graphic Word can edit (so SmartArt Design is shown).
 pub fn has_smart_art_selected(s: &wordcraft_engine::Session) -> bool {
     wordcraft_engine::cmd::smart_art::selected_smart_art(s).is_some()
 }
 
-/// Whether the selection is a chart WordCraft can edit (so Chart Design is shown).
+/// Whether the selection is a chart Word can edit (so Chart Design is shown).
 pub fn has_chart_selected(s: &wordcraft_engine::Session) -> bool {
     wordcraft_engine::cmd::chart::selected_chart(s).is_some()
 }
@@ -683,7 +683,7 @@ pub(crate) const PROOFING_LANGUAGES: [(&str, &str); 10] = [
     ("id-ID", "Indonesian"),
 ];
 
-/// The English name of a proofing language tag, as the status bar shows it (no tag: WordCraft's
+/// The English name of a proofing language tag, as the status bar shows it (no tag: Word's
 /// default, US English): a listed language by its name; another region of one by the language
 /// and the region ("French (Canada)"); a bare language subtag by its usual variant; else the tag.
 pub(crate) fn language_name(tag: Option<&str>) -> String {
@@ -711,7 +711,7 @@ pub(crate) fn language_name(tag: Option<&str>) -> String {
                 None => tag.to_string(),
             }
         }
-        // A bare language subtag ("pt", "pl"): the variant WordCraft proofs.
+        // A bare language subtag ("pt", "pl"): the variant Word proofs.
         None => match wordcraft_engine::proof::ProofLang::from_tag(Some(tag)) {
             wordcraft_engine::proof::ProofLang::Pl => "Polish".into(),
             wordcraft_engine::proof::ProofLang::Hr => "Croatian".into(),
