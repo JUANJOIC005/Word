@@ -202,7 +202,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         .resizable(true)
         .frame(egui::Frame::NONE.fill(t.panel).inner_margin(10).stroke(Stroke::new(1.0, t.border)))
         .show(ui, |ui| {
-            if crate::panes::header(ui, "AI Assistant") {
+            if header(ui) {
                 app.ai.open = false;
                 return;
             }
@@ -211,6 +211,21 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
     if app.ai.running.is_some() || app.ai.picking.is_some() {
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(250));
     }
+}
+
+/// The pane's title and close button; true when closed.
+fn header(ui: &mut Ui) -> bool {
+    let mut close = false;
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(tx("AI Assistant", "Asistente IA")).font(semibold(15.0)));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if crate::widgets::icon_button(ui, "close", tx("Close", "Cerrar")).clicked() {
+                close = true;
+            }
+        });
+    });
+    ui.add_space(4.0);
+    close
 }
 
 fn body(app: &mut WordApp, ui: &mut Ui, t: &Tokens) {
