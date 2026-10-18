@@ -21,6 +21,20 @@
 - Aplicación de escritorio (Linux, Windows) y herramienta de línea de comandos `word-cli`.
 - Interfaz y motor 100 % Rust (egui/wgpu); sin servicios en la nube.
 
+## Asistente IA (propio de este fork)
+
+**Ayuda › Asistente IA** abre un panel lateral para que **Claude Code** o **Codex** escriban y editen
+en directo el documento abierto:
+
+- Crear un documento desde cero (en blanco, carta, currículum o informe) a partir de una descripción.
+- Adjuntar archivos (texto, PDF, imágenes…) que el agente lee; las imágenes se pueden insertar.
+- Acciones rápidas: resumir, corregir, mejorar formato, tabla de contenido, seguir escribiendo, traducir.
+- Opciones: modelo de Claude, trabajar solo sobre la selección y marcar sus cambios con control de cambios.
+
+Usa tu propia instalación de `claude` o `codex` (tu cuenta y tu plan). La app arranca su canal de
+control local y conecta el agente con `word-cli mcp --connect`; el código está en
+`crates/ui-egui/src/ai_pane.rs`.
+
 ## Descargar e instalar
 
 Las compilaciones se publican en [Releases](https://github.com/JUANJOIC005/Word/releases).

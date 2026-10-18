@@ -169,6 +169,7 @@ impl Exempt {
             || is_shortcut()
             || self.body.contains(plain)
             || self.names.contains(plain)
+            || crate::ai_pane::drew(plain) // the AI Assistant pane's own English/Spanish text (fork)
             || plain.starts_with('@') // contributor handles
             || plain.starts_with("Style") || plain.starts_with("Table Style ") // a new style's default name
             || plain.contains('┬') || plain.contains('\u{2061}') // equation input (UnicodeMath), drawn as math
@@ -368,6 +369,7 @@ fn complete_catalogs_have_every_string_the_interface_looked_up(mut keys: std::co
                 | "ISO 690 (author-date)"
                 | "ISO 690 (numerical)"
                 | "MLA"
+                | "AI"
                 | "SIST02"
                 | "Turabian"
         )

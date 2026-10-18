@@ -24,6 +24,16 @@ const FIRST_REQUEST: Duration = Duration::from_secs(30);
 /// The key file of a running control server; [`KeyFile::remove`] it when the window closes.
 pub struct KeyFile(PathBuf);
 
+/// Word fork: removes the key file of a control server the AI Assistant pane started, when the
+/// pane (the window) goes away.
+pub struct KeyFileGuard(pub KeyFile);
+
+impl Drop for KeyFileGuard {
+    fn drop(&mut self) {
+        self.0.remove();
+    }
+}
+
 impl KeyFile {
     pub fn path(&self) -> &Path {
         &self.0

@@ -455,6 +455,16 @@ fn main() -> eframe::Result {
             {
                 app = app.with_control(rx);
                 key_file = file;
+                app.ai.port = control_port;
+            } else if control_port.is_none() {
+                // Word fork: the AI Assistant pane starts the control server on a free port the
+                // first time it sends a message, so the agent's MCP bridge can reach this window.
+                app.ai.starter = Some(Box::new(|ctx: &egui::Context| {
+                    let port = std::net::TcpListener::bind(("127.0.0.1", 0)).ok()?.local_addr().ok()?.port();
+                    let (rx, file) = control_server::start(port, ctx.clone(), wordcraft_control_key::settings_dir().as_deref())?;
+                    let guard: Box<dyn std::any::Any + Send> = Box::new(control_server::KeyFileGuard(file?));
+                    Some((port, rx, guard))
+                }));
             }
             // Nothing to open (no files, no sample, no control channel driving the editor): start
             // on File › Home, as Word does (#766), unless the Start screen option is off. Files
