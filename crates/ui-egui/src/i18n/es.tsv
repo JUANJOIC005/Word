@@ -2654,33 +2654,3 @@ preview	Title	Título
 	Type a size in any unit, such as 5 cm or 300 px. The other side follows, so the picture keeps its proportions.	Escribe un tamaño en cualquier unidad, como 5 cm o 300 px. El otro lado se ajusta, así que la imagen conserva sus proporciones.
 
 	Import…	Importar…
-# Word fork: AI Assistant pane (ai_pane.rs).
-	AI Assistant	Asistente IA
-	AI\nAssistant	Asistente\nIA
-	Ask Claude or Codex to write or edit the open document. Changes appear as they work.	Pide a Claude o a Codex que escriban o editen el documento abierto. Los cambios aparecen mientras trabajan.
-	You	Tú
-	Working…	Trabajando…
-	Message (Ctrl+Enter to send)	Mensaje (Ctrl+Intro para enviar)
-	Send	Enviar
-	New conversation	Nueva conversación
-	The control channel could not start, so the agent cannot reach the document.	No se pudo iniciar el canal de control, así que el agente no puede acceder al documento.
-	Claude Code (`claude`) is not installed or not on PATH.	Claude Code (`claude`) no está instalado o no está en el PATH.
-	Codex (`codex`) is not installed or not on PATH.	Codex (`codex`) no está instalado o no está en el PATH.
-	Selection only	Solo la selección
-	Track the agent's changes (review them in Review)	Marcar los cambios del agente (revísalos en Revisar)
-	Create a document	Crear un documento
-	Describe it in the message box, pick a starting point and create it.	Descríbelo en el cuadro de mensaje, elige un punto de partida y créalo.
-	Create with AI	Crear con IA
-	Quick actions	Acciones rápidas
-	Summarize	Resumir
-	Proofread	Corregir
-	Improve formatting	Mejorar el formato
-	Table of contents	Tabla de contenido
-	Continue writing	Seguir escribiendo
-	Translate to English	Traducir al inglés
-	Translate to Spanish	Traducir al español
-	Insert in document	Insertar en el documento
-	Attach files…	Adjuntar archivos…
-	No file dialog could be shown:	No se pudo mostrar el diálogo de archivos:
-	This version has no file dialog.	Esta versión no tiene diálogo de archivos.
-	Save or discard the current document's changes, then press Create with AI again.	Guarda o descarta los cambios del documento actual y vuelve a pulsar Crear con IA.

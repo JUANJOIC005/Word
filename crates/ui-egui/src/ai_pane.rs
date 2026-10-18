@@ -35,27 +35,49 @@ when the user lists them. Do not create, open, save or close documents unless th
 answer in the user's language.";
 
 /// File › New templates offered by Create with AI: (`file.new` template, label).
-const TEMPLATES: &[(&str, &str)] = &[("blank", "Blank document"), ("letter", "Letter"), ("resume", "Résumé"), ("report", "Report")];
+const TEMPLATES: &[(&str, &str, &str)] = &[
+    ("blank", "Blank document", "Documento en blanco"),
+    ("letter", "Letter", "Carta"),
+    ("resume", "Résumé", "Currículum"),
+    ("report", "Report", "Informe"),
+];
 
-/// Claude models: (`--model` alias, label); empty is Claude Code's own default.
-const CLAUDE_MODELS: &[(&str, &str)] = &[("", "Default"), ("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")];
+/// Claude models: (`--model` alias, label, Spanish label); empty is Claude Code's own default.
+const CLAUDE_MODELS: &[(&str, &str, &str)] =
+    &[("", "Default", "Predeterminado"), ("opus", "Opus", "Opus"), ("sonnet", "Sonnet", "Sonnet"), ("haiku", "Haiku", "Haiku")];
 
-/// One-click actions: (label, request).
-const ACTIONS: &[(&str, &str)] = &[
-    ("Summarize", "Write a short summary of the document and insert it at the beginning under a heading, in the document's language."),
+/// One-click actions: (label, Spanish label, request).
+const ACTIONS: &[(&str, &str, &str)] = &[
+    ("Summarize", "Resumir", "Write a short summary of the document and insert it at the beginning under a heading, in the document's language."),
     (
         "Proofread",
+        "Corregir",
         "Proofread the document: fix spelling, grammar and punctuation and improve clarity without changing the meaning or the formatting.",
     ),
     (
         "Improve formatting",
+        "Mejorar el formato",
         "Improve the formatting: consistent heading styles, paragraph spacing, and lists or tables where they help. Do not change the wording.",
     ),
-    ("Table of contents", "Insert a table of contents at the beginning (references.toc), making sure the headings use heading styles."),
-    ("Continue writing", "Continue writing from the end of the document, matching its tone and style, for about three paragraphs."),
-    ("Translate to English", "Translate the document into English, keeping its formatting."),
-    ("Translate to Spanish", "Translate the document into Spanish, keeping its formatting."),
+    (
+        "Table of contents",
+        "Tabla de contenido",
+        "Insert a table of contents at the beginning (references.toc), making sure the headings use heading styles.",
+    ),
+    (
+        "Continue writing",
+        "Seguir escribiendo",
+        "Continue writing from the end of the document, matching its tone and style, for about three paragraphs.",
+    ),
+    ("Translate to English", "Traducir al inglés", "Translate the document into English, keeping its formatting."),
+    ("Translate to Spanish", "Traducir al español", "Translate the document into Spanish, keeping its formatting."),
 ];
+
+/// The pane's own text in English or Spanish. It stays out of the language catalogs on purpose: they
+/// must be complete in every language, and this pane is the fork's, not upstream's.
+fn tx(en: &'static str, es: &'static str) -> &'static str {
+    if crate::i18n::current().code() == "es" { es } else { en }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub enum Agent {
@@ -193,40 +215,50 @@ fn settings(app: &mut WordApp, ui: &mut Ui, busy: bool) {
                 app.ai.session = None;
             }
             if app.ai.agent == Agent::Claude {
-                let current = CLAUDE_MODELS.iter().find(|m| m.0 == app.ai.model).map_or("Default", |m| m.1);
-                egui::ComboBox::from_id_salt("ai_model").selected_text(tl!(current)).show_ui(ui, |ui| {
-                    for (alias, label) in CLAUDE_MODELS {
-                        ui.selectable_value(&mut app.ai.model, (*alias).to_string(), tl!(label));
+                let current = CLAUDE_MODELS.iter().find(|m| m.0 == app.ai.model).map_or("Default", |m| tx(m.1, m.2));
+                egui::ComboBox::from_id_salt("ai_model").selected_text(current).show_ui(ui, |ui| {
+                    for (alias, en, es) in CLAUDE_MODELS {
+                        ui.selectable_value(&mut app.ai.model, (*alias).to_string(), tx(en, es));
                     }
                 });
             }
         });
-        egui::CollapsingHeader::new(tl!("Options")).id_salt("ai_options").show(ui, |ui| {
+        egui::CollapsingHeader::new(tx("Options", "Opciones")).id_salt("ai_options").show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.radio_value(&mut app.ai.selection_only, false, tl!("Whole document"));
-                ui.radio_value(&mut app.ai.selection_only, true, tl!("Selection only"));
+                ui.radio_value(&mut app.ai.selection_only, false, tx("Whole document", "Todo el documento"));
+                ui.radio_value(&mut app.ai.selection_only, true, tx("Selection only", "Solo la selección"));
             });
-            ui.checkbox(&mut app.ai.track_changes, tl!("Track the agent's changes (review them in Review)"));
+            ui.checkbox(
+                &mut app.ai.track_changes,
+                tx("Track the agent's changes (review them in Review)", "Marcar los cambios del agente (revísalos en Revisar)"),
+            );
         });
-        egui::CollapsingHeader::new(tl!("Create a document")).id_salt("ai_create").show(ui, |ui| {
-            ui.label(RichText::new(tl!("Describe it in the message box, pick a starting point and create it.")).font(regular(12.0)).weak());
+        egui::CollapsingHeader::new(tx("Create a document", "Crear un documento")).id_salt("ai_create").show(ui, |ui| {
+            ui.label(
+                RichText::new(tx(
+                    "Describe it in the message box, pick a starting point and create it.",
+                    "Descríbelo en el cuadro de mensaje, elige un punto de partida y créalo.",
+                ))
+                .font(regular(12.0))
+                .weak(),
+            );
             ui.horizontal(|ui| {
-                let (_, label) = TEMPLATES[app.ai.template.min(TEMPLATES.len() - 1)];
-                egui::ComboBox::from_id_salt("ai_template").selected_text(tl!(label)).show_ui(ui, |ui| {
-                    for (i, (_, label)) in TEMPLATES.iter().enumerate() {
-                        ui.selectable_value(&mut app.ai.template, i, tl!(label));
+                let (_, en, es) = TEMPLATES[app.ai.template.min(TEMPLATES.len() - 1)];
+                egui::ComboBox::from_id_salt("ai_template").selected_text(tx(en, es)).show_ui(ui, |ui| {
+                    for (i, (_, en, es)) in TEMPLATES.iter().enumerate() {
+                        ui.selectable_value(&mut app.ai.template, i, tx(en, es));
                     }
                 });
-                if ui.add_enabled(!app.ai.input.trim().is_empty(), egui::Button::new(tl!("Create with AI"))).clicked() {
+                if ui.add_enabled(!app.ai.input.trim().is_empty(), egui::Button::new(tx("Create with AI", "Crear con IA"))).clicked() {
                     create_document(app, ui.ctx());
                 }
             });
         });
-        egui::CollapsingHeader::new(tl!("Quick actions")).id_salt("ai_actions").default_open(true).show(ui, |ui| {
+        egui::CollapsingHeader::new(tx("Quick actions", "Acciones rápidas")).id_salt("ai_actions").default_open(true).show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                for (label, request) in ACTIONS {
-                    if ui.small_button(tl!(label)).clicked() {
-                        send(app, ui.ctx(), request, tl!(label));
+                for (en, es, request) in ACTIONS {
+                    if ui.small_button(tx(en, es)).clicked() {
+                        send(app, ui.ctx(), request, tx(en, es));
                     }
                 }
             });
@@ -239,22 +271,28 @@ fn conversation(app: &mut WordApp, ui: &mut Ui, t: &Tokens, busy: bool) {
     let agent = app.ai.agent.name();
     egui::ScrollArea::vertical().stick_to_bottom(true).auto_shrink([false, false]).show(ui, |ui| {
         if app.ai.log.is_empty() {
-            ui.label(RichText::new(tl!("Ask Claude or Codex to write or edit the open document. Changes appear as they work.")).color(t.text));
+            ui.label(
+                RichText::new(tx(
+                    "Ask Claude or Codex to write or edit the open document. Changes appear as they work.",
+                    "Pide a Claude o a Codex que escriban o editen el documento abierto. Los cambios aparecen mientras trabajan.",
+                ))
+                .color(t.text),
+            );
         }
         for line in &app.ai.log {
             match line {
                 Line::User(s) => {
-                    ui.label(RichText::new(tl!("You")).font(semibold(13.0)));
+                    ui.label(RichText::new(tx("You", "Tú")).font(semibold(13.0)));
                     ui.add(egui::Label::new(RichText::new(s).font(regular(13.0))).selectable(true));
                 }
                 Line::Agent(s) => {
                     ui.label(RichText::new(agent).font(semibold(13.0)).color(t.accent));
                     ui.add(egui::Label::new(RichText::new(s).font(regular(13.0))).selectable(true));
                     ui.horizontal(|ui| {
-                        if ui.small_button(tl!("Copy")).clicked() {
+                        if ui.small_button(tx("Copy", "Copiar")).clicked() {
                             ui.ctx().copy_text(s.clone());
                         }
-                        if ui.small_button(tl!("Insert in document")).clicked() {
+                        if ui.small_button(tx("Insert in document", "Insertar en el documento")).clicked() {
                             insert = Some(s.clone());
                         }
                     });
@@ -266,7 +304,7 @@ fn conversation(app: &mut WordApp, ui: &mut Ui, t: &Tokens, busy: bool) {
                     ui.label(RichText::new(s).font(regular(11.0)).weak());
                 }
                 Line::Error(s) => {
-                    ui.label(RichText::new(s).font(regular(12.0)).color(egui::Color32::from_rgb(0xD1, 0x3B, 0x3B)));
+                    ui.label(RichText::new(s).font(regular(12.0)).color(t.red));
                 }
             }
             ui.add_space(4.0);
@@ -274,7 +312,7 @@ fn conversation(app: &mut WordApp, ui: &mut Ui, t: &Tokens, busy: bool) {
         if let Some(r) = &app.ai.running {
             ui.horizontal(|ui| {
                 ui.spinner();
-                ui.label(format!("{} {:.0} s", tl!("Working…"), (crate::now_ms() - r.started) / 1000.0));
+                ui.label(format!("{} {:.0} s", tx("Working…", "Trabajando…"), (crate::now_ms() - r.started) / 1000.0));
             });
         }
     });
@@ -293,7 +331,7 @@ fn composer(app: &mut WordApp, ui: &mut Ui, busy: bool) {
             for (i, p) in app.ai.attachments.iter().enumerate() {
                 let name = p.file_name().map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into_owned());
                 ui.label(RichText::new(name).font(regular(12.0))).on_hover_text(p.display().to_string());
-                if crate::widgets::icon_button(ui, "close", tl!("Remove")).clicked() {
+                if crate::widgets::icon_button(ui, "close", tx("Remove", "Quitar")).clicked() {
                     remove = Some(i);
                 }
             }
@@ -304,24 +342,27 @@ fn composer(app: &mut WordApp, ui: &mut Ui, busy: bool) {
     }
     let edit = ui.add_enabled(
         !busy,
-        egui::TextEdit::multiline(&mut app.ai.input).desired_rows(4).desired_width(f32::INFINITY).hint_text(tl!("Message (Ctrl+Enter to send)")),
+        egui::TextEdit::multiline(&mut app.ai.input)
+            .desired_rows(4)
+            .desired_width(f32::INFINITY)
+            .hint_text(tx("Message (Ctrl+Enter to send)", "Mensaje (Ctrl+Intro para enviar)")),
     );
     let ctrl_enter = edit.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter) && i.modifiers.command);
     let mut send_now = false;
     ui.horizontal(|ui| {
         if busy {
-            if ui.button(tl!("Stop")).clicked()
+            if ui.button(tx("Stop", "Detener")).clicked()
                 && let Some(r) = &app.ai.running
             {
                 r.stop();
             }
-        } else if ui.add_enabled(!app.ai.input.trim().is_empty(), egui::Button::new(tl!("Send"))).clicked() {
+        } else if ui.add_enabled(!app.ai.input.trim().is_empty(), egui::Button::new(tx("Send", "Enviar"))).clicked() {
             send_now = true;
         }
-        if ui.add_enabled(!busy && app.ai.picking.is_none(), egui::Button::new(tl!("Attach files…"))).clicked() {
+        if ui.add_enabled(!busy && app.ai.picking.is_none(), egui::Button::new(tx("Attach files…", "Adjuntar archivos…"))).clicked() {
             pick_attachments(app);
         }
-        if ui.add_enabled(!busy && !app.ai.log.is_empty(), egui::Button::new(tl!("New conversation"))).clicked() {
+        if ui.add_enabled(!busy && !app.ai.log.is_empty(), egui::Button::new(tx("New conversation", "Nueva conversación"))).clicked() {
             app.ai.log.clear();
             app.ai.session = None;
         }
@@ -344,7 +385,10 @@ fn poll(app: &mut WordApp) {
                 app.ai.picking = None;
                 match answer {
                     Ok(paths) => add_attachments(app, paths),
-                    Err(e) => app.ai.log.push(Line::Error(format!("{} {e}", tl!("No file dialog could be shown:")))),
+                    Err(e) => app
+                        .ai
+                        .log
+                        .push(Line::Error(format!("{} {e}", tx("No file dialog could be shown:", "No se pudo mostrar el diálogo de archivos:")))),
                 }
             }
         }
@@ -371,7 +415,7 @@ fn pick_attachments(app: &mut WordApp) {
         let picked: Vec<String> = pick("attachments").into_iter().collect();
         add_attachments(app, picked);
     } else {
-        app.ai.log.push(Line::Error(tl!("This version has no file dialog.").to_string()));
+        app.ai.log.push(Line::Error(tx("This version has no file dialog.", "Esta versión no tiene diálogo de archivos.").to_string()));
     }
 }
 
@@ -386,11 +430,17 @@ fn add_attachments(app: &mut WordApp, paths: Vec<String>) {
 /// File › New from the chosen template, then the agent writes the description into it.
 fn create_document(app: &mut WordApp, ctx: &egui::Context) {
     let description = app.ai.input.trim().to_string();
-    let (template, _) = TEMPLATES[app.ai.template.min(TEMPLATES.len() - 1)];
+    let (template, _, _) = TEMPLATES[app.ai.template.min(TEMPLATES.len() - 1)];
     match app.run("file.new", json!({"template": template})) {
         // "Save changes?" is up: the user answers it, then presses Create again.
         Ok(v) if v.get("pending").is_some() || v.get("done") == Some(&Value::Bool(false)) => {
-            app.ai.log.push(Line::Info(tl!("Save or discard the current document's changes, then press Create with AI again.").to_string()));
+            app.ai.log.push(Line::Info(
+                tx(
+                    "Save or discard the current document's changes, then press Create with AI again.",
+                    "Guarda o descarta los cambios del documento actual y vuelve a pulsar Crear con IA.",
+                )
+                .to_string(),
+            ));
         }
         Err(e) => app.ai.log.push(Line::Error(e)),
         Ok(_) => {
@@ -447,7 +497,13 @@ fn send(app: &mut WordApp, ctx: &egui::Context, request: &str, shown: &str) {
         return;
     }
     let Some(port) = ensure_control(app, ctx) else {
-        app.ai.log.push(Line::Error(tl!("The control channel could not start, so the agent cannot reach the document.").to_string()));
+        app.ai.log.push(Line::Error(
+            tx(
+                "The control channel could not start, so the agent cannot reach the document.",
+                "No se pudo iniciar el canal de control, así que el agente no puede acceder al documento.",
+            )
+            .to_string(),
+        ));
         return;
     };
     let prompt = build_prompt(app, request);
@@ -561,8 +617,13 @@ fn spawn(job: &Job, prompt: &str, ctx: egui::Context) -> Result<Running, String>
     let agent = job.agent;
     let Some(program) = find_program(agent.program()) else {
         return Err(match agent {
-            Agent::Claude => tl!("Claude Code (`claude`) is not installed or not on PATH.").to_string(),
-            Agent::Codex => tl!("Codex (`codex`) is not installed or not on PATH.").to_string(),
+            Agent::Claude => {
+                tx("Claude Code (`claude`) is not installed or not on PATH.", "Claude Code (`claude`) no está instalado o no está en el PATH.")
+                    .to_string()
+            }
+            Agent::Codex => {
+                tx("Codex (`codex`) is not installed or not on PATH.", "Codex (`codex`) no está instalado o no está en el PATH.").to_string()
+            }
         });
     };
     let cli = cli_path();

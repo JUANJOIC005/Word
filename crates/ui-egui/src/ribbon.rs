@@ -2233,7 +2233,7 @@ fn help(app: &mut WordApp, ui: &mut Ui) {
     });
     group(ui, "Agents", None, app, |ui, app| {
         let open = app.ai.open;
-        big_toggle(ui, app, "editor", "AI\nAssistant", "ui.aiPane", open);
+        big_toggle(ui, app, "editor", "AI", "ui.aiPane", open);
         big(ui, app, "macros", "Commands", "ui.dialog", json!({"name": "commands"}), false);
     });
 }
