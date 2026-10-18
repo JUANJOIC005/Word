@@ -2693,9 +2693,7 @@ fn body(app: &mut WordApp, ui: &mut Ui, d: &mut Dialog) -> bool {
                     ui.hyperlink_to(tl!("Source code: github.com/JUANJOIC005/Word"), "https://github.com/JUANJOIC005/Word");
                     ui.add_space(6.0);
                     ui.label(
-                        egui::RichText::new(tl!("MIT OR Apache-2.0. Copyright (c) 2026 ArtCraft Team and the Word contributors."))
-                            .small()
-                            .weak(),
+                        egui::RichText::new(tl!("MIT OR Apache-2.0. Copyright (c) 2026 ArtCraft Team and the Word contributors.")).small().weak(),
                     );
                 }
             }
