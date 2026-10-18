@@ -355,6 +355,7 @@ fn complete_catalogs_have_every_string_the_interface_looked_up(mut keys: std::co
             s,
             "LaTeX"
                 | "LaTeX (*.tex)"
+                | "Source code: github.com/JUANJOIC005/Word"
                 | "Unicode"
                 | "I. II. III."
                 | "i. ii. iii."
