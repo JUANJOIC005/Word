@@ -367,6 +367,7 @@ fn complete_catalogs_have_every_string_the_interface_looked_up(mut keys: std::co
                 | "ISO 690 (author-date)"
                 | "ISO 690 (numerical)"
                 | "MLA"
+                | "AI"
                 | "SIST02"
                 | "Turabian"
         )
