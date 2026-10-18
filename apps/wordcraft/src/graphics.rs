@@ -14,12 +14,14 @@ use eframe::{
 /// compiler aborts on them, the device is lost and eframe exits before the window opens. WordCraft
 /// issues no indirect draws or dispatches, so Intel Macs skip them; every other GPU keeps wgpu's
 /// default. Same fix as PhotoCraft's storytold/PhotoCraft#3171.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn skips_indirect_validation(macos: bool, intel: bool) -> bool {
     macos && intel
 }
 
 /// Leaves wgpu's indirect-call validation out of the instance eframe creates when `skip`.
 /// `WGPU_VALIDATION_INDIRECT_CALL=1` still turns it back on.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn configure_indirect_validation(options: &mut NativeOptions, skip: bool) {
     if !skip {
         return;
