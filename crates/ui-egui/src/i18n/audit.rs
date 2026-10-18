@@ -172,7 +172,7 @@ impl Exempt {
             || plain.starts_with('@') // contributor handles
             || plain.starts_with("Style") || plain.starts_with("Table Style ") // a new style's default name
             || plain.contains('┬') || plain.contains('\u{2061}') // equation input (UnicodeMath), drawn as math
-            || matches!(plain, "Word" | "Word User" | "Discord" | "https://" | "auto" | "I. II. III." | "i. ii. iii.")
+            || matches!(plain, "Word" | "Word User" | "WordCraft" | "WordCraft User" | "Discord" | "https://" | "auto" | "I. II. III." | "i. ii. iii.")
             || plain == "CONFIDENTIAL" // the watermark dialog's text: document content, kept as typed
             || plain == "Figure 1" // the caption dialog's sample: the label goes into the document as is
     }
@@ -354,6 +354,7 @@ fn complete_catalogs_have_every_string_the_interface_looked_up(mut keys: std::co
             s,
             "LaTeX"
                 | "LaTeX (*.tex)"
+                | "Source code: github.com/JUANJOIC005/Word"
                 | "Unicode"
                 | "I. II. III."
                 | "i. ii. iii."

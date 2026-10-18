@@ -105,9 +105,7 @@ mod xdg {
 
     pub(super) fn make_default() -> Result<DefaultApp, String> {
         if std::env::var_os("FLATPAK_ID").is_some() || std::path::Path::new("/.flatpak-info").exists() {
-            return Err(
-                "the Flatpak sandbox can't change default apps; choose Word under Open With in your file manager or system settings".into()
-            );
+            return Err("the Flatpak sandbox can't change default apps; choose Word under Open With in your file manager or system settings".into());
         }
         let var = |k: &str| std::env::var(k).ok();
         let dirs = application_dirs(var("XDG_DATA_HOME").as_deref(), var("XDG_DATA_DIRS").as_deref(), var("HOME").as_deref());
@@ -161,7 +159,7 @@ mod tests {
         for t in WORD_MIME_TYPES {
             assert!(declared.contains(t), "{t} missing from MimeType=");
         }
-        assert!(entry.lines().any(|l| l == "Exec=wordcraft %F"), "files are passed on the command line");
+        assert!(entry.lines().any(|l| l == "Exec=word %F"), "files are passed on the command line");
     }
 
     #[cfg(unix)]

@@ -115,10 +115,16 @@ jobs:
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" "${debs[0]}" --clobber
           else
+            # A version with a suffix (0.8.1-ai.1) is a test build: a pre-release, never "Latest".
+            prerelease=()
+            if [[ "$RELEASE_VERSION" == *-* ]]; then
+              prerelease=(--prerelease)
+            fi
             gh release create "$RELEASE_TAG" "${debs[0]}" \
               --target "$GITHUB_SHA" \
               --title "Word v$RELEASE_VERSION" \
-              --generate-notes
+              --generate-notes \
+              "${prerelease[@]}"
           fi
 
           release_url="$(gh release view "$RELEASE_TAG" --json url --jq .url)"
