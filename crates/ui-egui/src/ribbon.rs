@@ -2232,6 +2232,8 @@ fn help(app: &mut WordApp, ui: &mut Ui) {
         big(ui, app, "discord", "Community\nDiscord", "ui.discord", json!({}), false);
     });
     group(ui, "Agents", None, app, |ui, app| {
+        let open = app.ai.open;
+        big_toggle(ui, app, "editor", "AI\nAssistant", "ui.aiPane", open);
         big(ui, app, "macros", "Commands", "ui.dialog", json!({"name": "commands"}), false);
     });
 }

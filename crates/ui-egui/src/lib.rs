@@ -22,6 +22,7 @@ macro_rules! tl {
 
 pub mod a11y;
 pub mod a11y_pane;
+pub mod ai_pane;
 pub mod async_saves;
 pub mod autoscroll;
 pub mod backstage;
@@ -526,6 +527,8 @@ pub struct WordApp {
     pub integrated_titlebar: bool,
     /// macOS: the title bar's height and where its content starts, around the traffic lights.
     pub mac_titlebar: chrome::MacTitleBar,
+    /// Word fork: the AI Assistant pane (Claude Code or Codex editing the document live).
+    pub ai: ai_pane::AiPane,
     control_rx: Option<std::sync::mpsc::Receiver<ControlRequest>>,
     shot_token: u64,
     queued_shots: Vec<(u64, f64, u32)>,
@@ -665,6 +668,7 @@ impl WordApp {
             previews: previews::Previews::default(),
             integrated_titlebar: false,
             mac_titlebar: chrome::MacTitleBar::default(),
+            ai: Default::default(),
             control_rx: None,
             shot_token: 0,
             queued_shots: Vec::new(),
@@ -1676,13 +1680,17 @@ impl WordApp {
             // MCP get an error.
             "ui.makeDefaultApp" => {
                 return Some(Err(
-                    "making Word the default app needs a click in File › Options › General; scripts and agents can't change system defaults"
-                        .into(),
+                    "making Word the default app needs a click in File › Options › General; scripts and agents can't change system defaults".into(),
                 ));
             }
             "ui.discord" => {
                 self.canvas.open_url = Some("https://discord.gg/artcraft".into());
                 json!({})
+            }
+            // Help › AI Assistant: `value` true or false shows or hides the pane; without it, toggles.
+            "ui.aiPane" => {
+                self.ai.open = p.get("value").and_then(Value::as_bool).unwrap_or(!self.ai.open);
+                json!({"open": self.ai.open})
             }
             "ui.caretAnimation" => {
                 // File › Options › Advanced › Animation: `value` true or false turns the caret's
@@ -2222,6 +2230,7 @@ impl WordApp {
                 ribbon::show(self, ui);
                 chrome::status_bar(self, ui);
                 panes::show(self, ui);
+                ai_pane::show(self, ui);
             }
             egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.canvas)).show(ui, |ui| {
                 canvas::show(self, ui);
