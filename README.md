@@ -7,7 +7,7 @@
   </a>
 </p>
 
-<h1 align="center">WordCraft</h1>
+<h1 align="center">Word</h1>
 
 <p align="center">
   <b>Writing and document design; an open-source, clean-room reimplementation of Microsoft Word, rebuilt in pure Rust.</b>
@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <a href="https://getartcraft.com/apps/wordcraft"><b>WordCraft on getartcraft.com</b></a> ·
+  <a href="https://getartcraft.com/apps/wordcraft"><b>Word on getartcraft.com</b></a> ·
   <a href="https://getartcraft.com/">ArtCraft</a> ·
   <a href="https://getartcraft.com/apps">All Crafting Apps</a>
 </p>
@@ -40,8 +40,8 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/hero.png" alt="WordCraft with the Home tab of the ribbon open over a two-page document titled The Open Studio Handbook. The Navigation pane on the left lists the document's headings, the Styles gallery shows live previews of Normal, Heading 1, Title and Subtitle, and a word in the first paragraph is selected." width="100%">
-  <br><sub><b>The Open Studio Handbook</b>, WordCraft's built-in sample: the ribbon, live Styles gallery, rulers and the Navigation pane.</sub>
+  <img src="docs/images/hero.png" alt="Word with the Home tab of the ribbon open over a two-page document titled The Open Studio Handbook. The Navigation pane on the left lists the document's headings, the Styles gallery shows live previews of Normal, Heading 1, Title and Subtitle, and a word in the first paragraph is selected." width="100%">
+  <br><sub><b>The Open Studio Handbook</b>, Word's built-in sample: the ribbon, live Styles gallery, rulers and the Navigation pane.</sub>
 </p>
 
 > [!NOTE]
@@ -51,7 +51,7 @@
 
 <p align="center">
   <a href="#a-tour">A tour</a> ·
-  <a href="#why-wordcraft">Why WordCraft</a> ·
+  <a href="#why-wordcraft">Why Word</a> ·
   <a href="#what-works-today">What works today</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#for-agents-cli-and-mcp">For agents</a> ·
@@ -64,7 +64,7 @@
 
 ## A tour
 
-Every screenshot below is WordCraft itself, rendered offscreen by its own UI test harness
+Every screenshot below is Word itself, rendered offscreen by its own UI test harness
 (`cargo run -p wordcraft-ui-egui --example ui_shot`).
 
 <table>
@@ -74,7 +74,7 @@ Every screenshot below is WordCraft itself, rendered offscreen by its own UI tes
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/design.png" alt="The Design tab showing style-set previews; the document is set in a serif theme with plum headings underlined by thin rules and a pale diagonal DRAFT watermark behind the text" width="100%"><p align="center"><sub><b>Design.</b> Themes, style sets, paragraph spacing, watermarks, page colour and borders.</sub></p></td>
-<td width="50%" valign="top"><img src="docs/images/dark.png" alt="WordCraft in dark mode with the Insert tab open and formatting marks shown: pilcrows at paragraph ends and dots for spaces" width="100%"><p align="center"><sub><b>Dark mode</b> with formatting marks, and the Insert tab: tables, pictures, shapes, links, headers, footers, fields and symbols.</sub></p></td>
+<td width="50%" valign="top"><img src="docs/images/dark.png" alt="Word in dark mode with the Insert tab open and formatting marks shown: pilcrows at paragraph ends and dots for spaces" width="100%"><p align="center"><sub><b>Dark mode</b> with formatting marks, and the Insert tab: tables, pictures, shapes, links, headers, footers, fields and symbols.</sub></p></td>
 </tr>
 <tr>
 <td colspan="2"><img src="docs/images/layout.png" alt="The Layout tab at 80% zoom: the first paragraph opens with a three-line drop cap E, a dark blue circle sits beside the second section with its paragraph wrapping around it and hyphenating art-ist at the line end, every line is numbered in the left margin and a thin blue border surrounds the page" width="100%"><p align="center"><sub><b>Layout.</b> Drop caps, text wrapping around pictures and shapes, automatic hyphenation, line numbers and page borders.</sub></p></td>
@@ -84,7 +84,7 @@ Every screenshot below is WordCraft itself, rendered offscreen by its own UI tes
 </tr>
 </table>
 
-## Why WordCraft
+## Why Word
 
 - **Familiar.** Word's ribbon tabs, groups, shortcuts and behaviour: Enter continues a list,
   Tab demotes it, Ctrl/⌘+B bolds the word under the caret, the Styles gallery previews styles live,
@@ -148,7 +148,7 @@ Web: `cd apps/wordcraft-web && trunk serve`, then open <http://127.0.0.1:8771/?s
 
 ## For agents: CLI and MCP
 
-WordCraft was designed to be driven by people *and* by AI agents.
+Word was designed to be driven by people *and* by AI agents.
 
 ```sh
 claude mcp add wordcraft -- wordcraft-cli mcp                  # headless documents
@@ -167,7 +167,7 @@ play it back (`tools.recordMacro`, `tools.macros`).
 
 The desktop app writes its log records to standard error and to `logs/wordcraft.log` next to its
 preferences: on Linux `$XDG_CONFIG_HOME/wordcraft/logs/` (by default `~/.config/wordcraft/logs/`),
-on macOS `~/Library/Application Support/WordCraft/logs/`, on Windows `%APPDATA%\WordCraft\logs\`.
+on macOS `~/Library/Application Support/Word/logs/`, on Windows `%APPDATA%\Word\logs\`.
 A start from a desktop menu or the Dock has no terminal, so this file is what to attach to a bug
 report: unreadable parts of a .docx, pictures or fonts a PDF export had to leave out and panics the
 command guard recovered from land there. Each launch moves the previous log to `wordcraft.1.log`
@@ -176,7 +176,7 @@ log stops growing at 16 MiB. `--version` writes no file, and runs with `WORDCRAF
 test runs) log to standard error only. Document text is never logged; a panic message leaves out
 the text it quotes.
 
-By default WordCraft's own crates log at `info` and everything else at `warn`. `RUST_LOG` replaces
+By default Word's own crates log at `info` and everything else at `warn`. `RUST_LOG` replaces
 that with env_logger-style directives, for example `RUST_LOG=debug`,
 `RUST_LOG=warn,wordcraft_docx=trace` or `RUST_LOG=info,wgpu_core=warn`; a directive ending in `*`
 covers every target starting with it (`wordcraft*=debug`). The logger is
@@ -200,7 +200,7 @@ check and the wasm build. Contributor and agent instructions: [AGENTS.md](AGENTS
 
 ## Roadmap
 
-WordCraft is in **alpha**. It covers 88% of Word's ribbon features with commands today; counting
+Word is in **alpha**. It covers 88% of Word's ribbon features with commands today; counting
 depth, file fidelity, stability and the rest, we estimate it is about 60% of the way to replacing
 all of Word for real work, about 55% for a typical professional's weekly work and about 63% for
 everyday essentials. Beta needs testing against real-world .docx files, keeping charts and SmartArt
@@ -209,7 +209,7 @@ and estimates: [ROADMAP.md](ROADMAP.md) and [where we fall short](docs/gaps.md).
 
 ## Downloads
 
-**Download WordCraft** from GitHub: the [latest release](https://github.com/storytold/wordcraft/releases/latest) has every build listed below, and [all releases](https://github.com/storytold/wordcraft/releases) has earlier versions and their notes. `<ver>` in the file names is the version number, and `SHA256SUMS.txt` lists a checksum for every file.
+**Download Word** from GitHub: the [latest release](https://github.com/storytold/wordcraft/releases/latest) has every build listed below, and [all releases](https://github.com/storytold/wordcraft/releases) has earlier versions and their notes. `<ver>` in the file names is the version number, and `SHA256SUMS.txt` lists a checksum for every file.
 
 ### Windows
 
@@ -241,7 +241,7 @@ Windows, creating a DirectX 12 graphics pipeline fails immediately and the app e
 window appears. `WGPU_BACKEND=vulkan` (or `dx12`) still overrides that.
 
 **If the app quits right after its window appears with "Parent device is lost" in the log:**
-WordCraft compiles DirectX 12 shaders with FXC, the compiler built into Windows, so it needs no
+Word compiles DirectX 12 shaders with FXC, the compiler built into Windows, so it needs no
 `dxcompiler.dll`/`dxil.dll` and ignores any copy another program put on `PATH` (#603).
 `WGPU_DX12_COMPILER` (`fxc`, `dxc`, `auto`) overrides this; with `dxc`, a matching
 `dxcompiler.dll` *and* `dxil.dll` must sit next to `wordcraft.exe`. `WGPU_BACKEND = "vulkan"`
@@ -249,7 +249,7 @@ also avoids DirectX 12 altogether.
 
 **If the app is slow on an older Windows PC:** when DirectX 12 finds no graphics card with a
 driver for it (for example Intel 4th-generation graphics on Windows 11), it only offers Microsoft's
-software renderer, which draws every frame on the processor. In that case WordCraft uses OpenGL
+software renderer, which draws every frame on the processor. In that case Word uses OpenGL
 instead, without setting anything. The log file records the choice (lines starting with
 `graphics:`). `WGPU_BACKEND` still overrides it, e.g. `$env:WGPU_BACKEND = "gl"` or `"dx12"`.
 
@@ -293,7 +293,7 @@ For example `yay -S wordcraft-bin` or `paru -S wordcraft-bin`.
 
 #### Community packages
 
-These packages are maintained by community members, not by the WordCraft team.
+These packages are maintained by community members, not by the Word team.
 
 On Gentoo, the [::snakebyte overlay](https://github.com/switch87/snakebyte-overlay) packages the
 Linux release as `app-office/wordcraft-bin` (prebuilt) and `app-office/wordcraft` (built from source):
@@ -319,7 +319,7 @@ emerge --ask app-office/wordcraft-bin
 
 ## The Crafting Apps
 
-WordCraft is one of the **Crafting Apps**: free, open-source creative tools from the
+Word is one of the **Crafting Apps**: free, open-source creative tools from the
 [ArtCraft](https://getartcraft.com/) team, each written from scratch in Rust and each able to
 stand on its own.
 
@@ -332,7 +332,7 @@ stand on its own.
 | <img src="https://raw.githubusercontent.com/storytold/pdfcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.pdfcraft.png" alt="" width="32" height="32"> | **PdfCraft** | Reading, organizing and protecting PDFs | [GitHub](https://github.com/storytold/pdfcraft) | [Website](https://getartcraft.com/apps/pdfcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.effectcraft.png" alt="" width="32" height="32"> | **EffectCraft** | Motion graphics and visual effects | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://getartcraft.com/apps/effectcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/designcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.designcraft.png" alt="" width="32" height="32"> | **DesignCraft** | Page layout and publishing | [GitHub](https://github.com/storytold/designcraft) | [Website](https://getartcraft.com/apps/designcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/wordcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.wordcraft.png" alt="" width="32" height="32"> | **WordCraft** | **Writing and document design · you are here** | [GitHub](https://github.com/storytold/wordcraft) | [Website](https://getartcraft.com/apps/wordcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/wordcraft/main/assets/app-icon/hicolor/64x64/apps/io.github.juanjoic005.word.png" alt="" width="32" height="32"> | **Word** | **Writing and document design · you are here** | [GitHub](https://github.com/storytold/wordcraft) | [Website](https://getartcraft.com/apps/wordcraft) |
 
 And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video studio for artists who want real control.
 
@@ -355,13 +355,13 @@ And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video stud
   <a href="https://discord.gg/artcraft"><b>discord.gg/artcraft</b></a> ·
   <a href="https://getartcraft.com/">getartcraft.com</a> ·
   <a href="https://getartcraft.com/apps">The Crafting Apps</a> ·
-  <a href="https://getartcraft.com/apps/wordcraft">WordCraft</a>
+  <a href="https://getartcraft.com/apps/wordcraft">Word</a>
 </p>
 
 ## License and credits
 
-WordCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-Copyright (c) 2026 ArtCraft Team and the WordCraft contributors. Required notices are in [NOTICE](NOTICE).
+Word is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Copyright (c) 2026 ArtCraft Team and the Word contributors. Required notices are in [NOTICE](NOTICE).
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
@@ -371,14 +371,14 @@ Hyphenator II word list. Polish spelling reads the Hunspell `pl_PL` dictionary i
 do Russian, Portuguese, Czech, Italian, Croatian and Turkish spelling (how to install them:
 [docs/spelling-dictionaries.md](docs/spelling-dictionaries.md)), and
 Polish hyphenation the TeX patterns by Hanna Kołodziejska, Bogusław Jackowski and Marek Ryćko (MIT
-option). The sample documents and templates are original text written for WordCraft.
+option). The sample documents and templates are original text written for Word.
 
 The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
 ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
-part of this repository and WordCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
+part of this repository and Word, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 Forks and modified versions must remove them.
 
-<sub>Microsoft and Microsoft Word are trademarks of the Microsoft group of companies. Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. WordCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Microsoft Corporation or Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
+<sub>Microsoft and Microsoft Word are trademarks of the Microsoft group of companies. Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. Word is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Microsoft Corporation or Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
   <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>

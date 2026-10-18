@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="$ROOT/assets/app-icon"
 SVG="$DIR/wordcraft.svg"
-ID="ai.storyteller.wordcraft"
+ID="io.github.juanjoic005.word"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

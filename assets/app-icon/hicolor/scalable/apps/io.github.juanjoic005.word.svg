@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Word icon (original: blue tile, white page, letter W; MIT OR Apache-2.0). Not Microsoft's mark. -->
+  <rect width="512" height="512" rx="112" fill="#2563C9"/>
+  <path d="M140 80 H318 L392 154 V432 H140 Z" fill="#ffffff"/>
+  <path d="M318 80 V154 H392 Z" fill="#c7d7f4"/>
+  <polyline points="178,200 214,370 256,262 298,370 334,200" fill="none" stroke="#2563C9" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

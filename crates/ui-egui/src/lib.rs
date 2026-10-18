@@ -1,4 +1,4 @@
-//! WordCraft's egui front end: a Word-style window (title bar with Quick Access Toolbar, ribbon,
+//! Word's egui front end: a Word-style window (title bar with Quick Access Toolbar, ribbon,
 //! rulers, page canvas, panes, status bar, Backstage, dialogs) over `wordcraft-engine`.
 //!
 //! The UI is thin: it reads `Session` state and acts through [`WordApp::run`] (command ids), so
@@ -165,7 +165,7 @@ pub struct Services {
     pub forget_font: Option<Box<dyn Fn(&str)>>,
     /// Web: request browser to query and load local installed fonts (`window.queryLocalFonts()`).
     pub load_system_fonts: Option<Box<dyn Fn()>>,
-    /// Desktop: File › Options › General › Make WordCraft the default for Word documents (#295),
+    /// Desktop: File › Options › General › Make Word the default for Word documents (#295),
     /// only from that button (never a programmatic command). Windows opens the Settings app's
     /// Default apps page (apps can't set defaults themselves); Linux and BSD set it with
     /// `xdg-mime`. `None` (web, macOS) hides the button; macOS shows how to do it in Finder
@@ -208,9 +208,9 @@ struct AwaitingSave {
 /// What [`Services::make_default_app`] did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DefaultApp {
-    /// The system's default-apps settings opened; the user picks WordCraft there (Windows).
+    /// The system's default-apps settings opened; the user picks Word there (Windows).
     SettingsOpened,
-    /// WordCraft is now the default app for Word documents (Linux, BSD).
+    /// Word is now the default app for Word documents (Linux, BSD).
     MadeDefault,
 }
 
@@ -600,7 +600,7 @@ pub struct WordApp {
     pub(crate) read_aloud_error: Option<String>,
     /// The file the document was last explicitly saved to in this session; AutoSave writes only
     /// there. A file that was merely opened isn't rewritten until the user saves it: saving drops
-    /// whatever WordCraft can't represent (content controls, charts, macros…).
+    /// whatever Word can't represent (content controls, charts, macros…).
     autosave_path: Option<std::path::PathBuf>,
     /// Web: saves the browser's picker hasn't finished yet ([`async_saves`], #1315).
     saves_in_flight: Vec<SaveInFlight>,
@@ -1670,13 +1670,13 @@ impl WordApp {
             // Native printing submits the selected queue on a worker; the browser owns its dialog.
             "ui.printSettings" => return Some(printing::settings(&mut self.printing, p, self.services.printers.as_ref())),
             "ui.print" | "ui.printSubmit" => return Some(self.print_to_system(p)),
-            // File › Options › General › Make WordCraft the default… changes the user's system
+            // File › Options › General › Make Word the default… changes the user's system
             // default apps (Linux) or opens system settings (Windows), so only a click on that
             // button does it ([`WordApp::make_default_app`]); scripts, the control channel and
             // MCP get an error.
             "ui.makeDefaultApp" => {
                 return Some(Err(
-                    "making WordCraft the default app needs a click in File › Options › General; scripts and agents can't change system defaults"
+                    "making Word the default app needs a click in File › Options › General; scripts and agents can't change system defaults"
                         .into(),
                 ));
             }
@@ -1737,26 +1737,26 @@ impl WordApp {
         printing::submit(self, p)
     }
 
-    /// File › Options › General › Make WordCraft the default…: hand over to the host's
+    /// File › Options › General › Make Word the default…: hand over to the host's
     /// [`Services::make_default_app`] and say in the status bar what happened. An error when the
     /// host has no hook (web, macOS). Only the button calls this: it is deliberately not a
     /// command, so nothing programmatic (control channel, MCP, macros) can change system defaults.
     pub(crate) fn make_default_app(&mut self) -> Result<Value, String> {
         let Some(hook) = self.services.make_default_app.as_ref() else {
-            return Err("WordCraft can't change the default apps here; use your system's settings".into());
+            return Err("Word can't change the default apps here; use your system's settings".into());
         };
         match hook() {
             Ok(DefaultApp::SettingsOpened) => {
-                self.status(tl!("In Default apps, choose WordCraft for the document types you want it to open."));
+                self.status(tl!("In Default apps, choose Word for the document types you want it to open."));
                 Ok(json!({"settingsOpened": true}))
             }
             Ok(DefaultApp::MadeDefault) => {
-                self.status(tl!("WordCraft is now the default app for Word documents."));
+                self.status(tl!("Word is now the default app for Word documents."));
                 Ok(json!({"default": true}))
             }
             Err(e) => {
                 log::warn!("make default app: {e}");
-                let msg = i18n::fmt(tl!("Couldn't make WordCraft the default: {error}"), &[("error", &e)]);
+                let msg = i18n::fmt(tl!("Couldn't make Word the default: {error}"), &[("error", &e)]);
                 self.status(msg.clone());
                 Err(msg)
             }
@@ -1942,7 +1942,7 @@ impl WordApp {
     pub fn logic(&mut self, ctx: &egui::Context) {
         let lang = i18n::Lang::from_pref(&self.ui.language);
         i18n::set_current(lang);
-        // New documents are written in the interface's language when WordCraft can proof it
+        // New documents are written in the interface's language when Word can proof it
         // (a Polish interface: Polish spelling, grammar and hyphenation from the first word).
         if self.applied_editing != Some(lang) {
             self.session.set_editing_language(lang.editing_lang());
@@ -2241,9 +2241,9 @@ impl WordApp {
             ctx.open_url(egui::OpenUrl::new_tab(url));
         }
         let title = if self.has_document() {
-            format!("{}{} - WordCraft", self.title_stem(), if self.session.dirty { " •" } else { "" })
+            format!("{}{} - Word", self.title_stem(), if self.session.dirty { " •" } else { "" })
         } else {
-            "WordCraft".to_string()
+            "Word".to_string()
         };
         if title != self.sent_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
@@ -2966,7 +2966,7 @@ mod tests {
         let a = h.state_mut();
         assert!(!a.ui.backstage, "Esc leaves the Start screen");
         assert!(!a.has_document(), "for an empty window, not a blank document");
-        assert_eq!(a.sent_title, "WordCraft", "the window is titled with the app alone");
+        assert_eq!(a.sent_title, "Word", "the window is titled with the app alone");
         // The ribbon's commands are off, but Help, the File tab and the settings work.
         for id in ["format.bold", "text.insert", "file.save", "file.saveAs", "file.print", "edit.paste", "insert.table", "ui.print"] {
             assert!(!widgets::enabled(a, id), "{id} is off with no document");
@@ -5140,7 +5140,7 @@ mod tests {
         assert!(a.status_msg.as_ref().is_some_and(|(m, _)| m.contains("blocked by the browser")), "the status bar says why");
     }
 
-    /// Make WordCraft the default… (#295) goes through the host's hook and reports the outcome in
+    /// Make Word the default… (#295) goes through the host's hook and reports the outcome in
     /// the status bar; without a hook (web, macOS) it's an error and nothing runs.
     #[test]
     fn make_default_app_needs_the_hosts_hook_and_reports_the_outcome() {
@@ -5290,12 +5290,12 @@ mod tests {
         assert!((again.height() - fit.height()).abs() < 1.0, "One Page fits the page again: {fit:?} vs {again:?}");
     }
 
-    /// File › Options shows Make WordCraft the default… only when the host can do it (#295), and
+    /// File › Options shows Make Word the default… only when the host can do it (#295), and
     /// the button runs the host's hook.
     #[test]
     fn the_default_app_button_shows_only_with_the_hosts_hook() {
         use egui_kittest::kittest::Queryable;
-        const LABEL: &str = "Make WordCraft the default for Word documents…";
+        const LABEL: &str = "Make Word the default for Word documents…";
         for hook in [false, true] {
             let calls = std::rc::Rc::new(std::cell::Cell::new(0));
             let mut a = app();

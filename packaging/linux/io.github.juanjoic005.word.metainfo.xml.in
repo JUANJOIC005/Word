@@ -2,25 +2,25 @@
 <!-- AppStream metadata (software centres, Flathub). Template: package.sh and the Flatpak
      manifest substitute @VERSION@ and @DATE@ from Cargo.toml and the build date. -->
 <component type="desktop-application">
-  <id>ai.storyteller.wordcraft</id>
+  <id>io.github.juanjoic005.word</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT OR Apache-2.0</project_license>
-  <name>WordCraft</name>
+  <name>Word</name>
   <summary>Write and design documents; open and save Word files</summary>
   <developer id="ai.storyteller">
     <name>Learning Machines LLC</name>
   </developer>
   <description>
     <p>
-      WordCraft is a fast, open-source word processor with a familiar ribbon: styles, tables, track changes, references, mail merge, and .docx, PDF, ODT, RTF, HTML and Markdown files. It can be driven by AI agents over MCP.
+      Word is a fast, open-source word processor with a familiar ribbon: styles, tables, track changes, references, mail merge, and .docx, PDF, ODT, RTF, HTML and Markdown files. It can be driven by AI agents over MCP.
     </p>
   </description>
-  <launchable type="desktop-id">ai.storyteller.wordcraft.desktop</launchable>
-  <icon type="stock">ai.storyteller.wordcraft</icon>
+  <launchable type="desktop-id">io.github.juanjoic005.word.desktop</launchable>
+  <icon type="stock">io.github.juanjoic005.word</icon>
   <!-- Only url types known to appstream 0.15 (Ubuntu 22.04, where CI validates): no vcs-browser. -->
-  <url type="homepage">https://getartcraft.com/apps/wordcraft</url>
-  <url type="bugtracker">https://github.com/storytold/wordcraft/issues</url>
-  <url type="help">https://github.com/storytold/wordcraft</url>
+  <url type="homepage">https://github.com/JUANJOIC005/Word</url>
+  <url type="bugtracker">https://github.com/JUANJOIC005/Word/issues</url>
+  <url type="help">https://github.com/JUANJOIC005/Word</url>
   <url type="contact">https://discord.gg/artcraft</url>
   <categories>
     <category>Office</category>
@@ -50,9 +50,9 @@
     <control>pointing</control>
     <control>tablet</control>
   </supports>
-  <!-- Document types WordCraft opens (#295), as in the desktop entry's MimeType=. -->
+  <!-- Document types Word opens (#295), as in the desktop entry's MimeType=. -->
   <provides>
-    <binary>wordcraft</binary>
+    <binary>word</binary>
     <mediatype>application/vnd.openxmlformats-officedocument.wordprocessingml.document</mediatype>
     <mediatype>application/vnd.ms-word.document.macroEnabled.12</mediatype>
     <mediatype>application/vnd.openxmlformats-officedocument.wordprocessingml.template</mediatype>
