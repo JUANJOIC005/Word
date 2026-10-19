@@ -958,7 +958,8 @@ fn cover_page(s: &mut Session, v: &Value) -> CmdResult {
     for b in &mut blocks {
         if let Block::Para(p) = b {
             p.props.space_before.get_or_insert(0.0);
-            p.props.space_after.get_or_insert(8.0);
+            // Blank lines only push the next block down: they add no spacing of their own.
+            p.props.space_after.get_or_insert(if p.text.is_empty() { 0.0 } else { 8.0 });
             p.props.line_spacing.get_or_insert(wordcraft_doc::props::LineSpacing::Multiple(1.15));
         }
     }
