@@ -4,9 +4,9 @@
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Color32, CornerRadius, FontId, Sense, Ui, pos2, vec2};
 
-use crate::theme::{Tokens, regular, semibold};
+use crate::theme::{Tokens, medium, regular, semibold};
 
-const SIZE: f32 = 13.0;
+const SIZE: f32 = 13.5;
 
 #[derive(Debug, PartialEq)]
 enum Block<'a> {
@@ -183,40 +183,61 @@ fn paragraph(ui: &mut Ui, text: &str, font: FontId, color: Color32, t: &Tokens, 
     let width = (ui.available_width() - indent).max(40.0);
     let mut job = LayoutJob::default();
     inline(&mut job, text, &font, color, t);
+    // Airy lines read better in a narrow pane.
+    let line = (font.size * 1.5).round();
+    for sec in &mut job.sections {
+        sec.format.line_height = Some(line);
+    }
     job.wrap.max_width = width;
     let galley = ui.painter().layout_job(job);
     let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), galley.size().y), Sense::hover());
-    if let Some(m) = marker {
-        ui.painter().text(pos2(r.min.x + 2.0, r.min.y), egui::Align2::LEFT_TOP, m, font.clone(), t.text_dim);
+    match marker {
+        Some("•") => {
+            ui.painter().circle_filled(pos2(r.min.x + 5.0, r.min.y + line / 2.0), 2.5, t.accent);
+        }
+        Some(m) => {
+            ui.painter().text(
+                pos2(r.min.x + indent - 6.0, r.min.y + line / 2.0),
+                egui::Align2::RIGHT_CENTER,
+                m,
+                medium(font.size - 0.5),
+                t.accent_text,
+            );
+        }
+        None => {}
     }
     ui.painter().galley(pos2(r.min.x + indent, r.min.y), galley, color);
 }
 
 /// Draw `text` at the available width.
 pub fn show(ui: &mut Ui, text: &str, t: &Tokens) {
-    ui.spacing_mut().item_spacing.y = 4.0;
+    ui.spacing_mut().item_spacing.y = 6.0;
+    let mut first = true;
     for b in blocks(text) {
         match b {
             Block::Heading(level, s) => {
-                ui.add_space(2.0);
+                if !first {
+                    ui.add_space(6.0);
+                }
                 let size = match level {
-                    1 => 16.0,
-                    2 => 14.5,
-                    _ => 13.5,
+                    1 => 16.5,
+                    2 => 15.0,
+                    _ => 14.0,
                 };
                 paragraph(ui, s, semibold(size), t.text, t, 0.0, None);
             }
             Block::Bullet(s) => paragraph(ui, s, regular(SIZE), t.text, t, 16.0, Some("•")),
-            Block::Numbered(n, s) => paragraph(ui, s, regular(SIZE), t.text, t, 20.0, Some(&format!("{n}."))),
+            Block::Numbered(n, s) => paragraph(ui, s, regular(SIZE), t.text, t, 22.0, Some(&format!("{n}."))),
             Block::Para(s) => paragraph(ui, &s, regular(SIZE), t.text, t, 0.0, None),
             Block::Code(code) => {
-                let galley = ui.painter().layout(code, FontId::monospace(11.5), t.text, ui.available_width() - 20.0);
-                let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), galley.size().y + 16.0), Sense::hover());
-                ui.painter().rect_filled(r, CornerRadius::same(8), t.hover);
-                ui.painter().galley(pos2(r.min.x + 10.0, r.min.y + 8.0), galley, t.text);
+                let galley = ui.painter().layout(code, FontId::monospace(11.5), t.text, ui.available_width() - 24.0);
+                let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), galley.size().y + 20.0), Sense::hover());
+                ui.painter().rect_filled(r, CornerRadius::same(10), t.hover);
+                ui.painter().galley(pos2(r.min.x + 12.0, r.min.y + 10.0), galley, t.text);
             }
-            Block::Gap => ui.add_space(4.0),
+            Block::Gap => ui.add_space(2.0),
         }
+        first = false;
     }
 }
 

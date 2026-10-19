@@ -15,9 +15,10 @@
 
 mod agent;
 mod chat;
+mod design;
+mod files;
 mod markdown;
 mod store;
-mod studio;
 
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -127,7 +128,21 @@ pub struct Turn {
     reply: Option<String>,
     error: Option<String>,
     stopped: bool,
+    /// A `/compact` turn: its reply becomes the conversation's summary.
+    compact: bool,
 }
+
+/// What a message asks the agent for, besides its text.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Kind {
+    Normal,
+    /// A new design in this direction.
+    Design(&'static design::Direction),
+    Compact,
+}
+
+/// The longest selection sent as it is; a longer one is cut (the agent can read the rest).
+const MAX_SELECTION: usize = 12_000;
 
 #[derive(Default)]
 pub struct AiPane {
@@ -135,14 +150,19 @@ pub struct AiPane {
     /// The control server's port: from `--control`, or once [`Self::starter`] ran.
     pub port: Option<u16>,
     pub starter: Option<ControlStarter>,
-    /// Where conversations are kept (`<settings>/ai`); none keeps them for this run only.
+    /// Where conversations and settings are kept (`<settings>/ai`); none keeps them for this run only.
     pub store_dir: Option<PathBuf>,
     /// Held for its `Drop` (removes the control key file).
     #[allow(dead_code)]
     guard: Option<Box<dyn std::any::Any + Send>>,
-    model: Model,
-    track_changes: bool,
-    selection_only: bool,
+    settings: design::Settings,
+    settings_loaded: bool,
+    /// Colours and style is showing instead of the conversation.
+    show_settings: bool,
+    /// A selection the user chose not to send (its chip was closed).
+    skip_selection: Option<String>,
+    /// Design with AI was asked for from the ribbon; it starts on the next frame.
+    queued_design: bool,
     attachments: Vec<PathBuf>,
     picking: Option<Receiver<FileDialogAnswer>>,
     input: String,
@@ -151,7 +171,6 @@ pub struct AiPane {
     key: Option<String>,
     running: Option<agent::Running>,
     turn: Option<Turn>,
-    studio: Option<studio::Studio>,
     /// Put the keyboard in the message box on the next frame.
     focus_input: bool,
 }
@@ -167,16 +186,24 @@ impl AiPane {
 }
 
 /// `ui.aiPane` (`value`: show or hide, default toggle, or show when an `agent` is given; `agent`:
-/// `claude` or `codex`) and `ui.aiStudio` (Document Design).
+/// `claude` or `codex`), `ui.aiDesign` (a new design by the AI) and `ui.aiSettings` (Colours and
+/// style).
 pub fn command(app: &mut WordApp, id: &str, p: &Value) -> Result<Value, String> {
     sync_document(app);
     match id {
-        "ui.aiStudio" => {
+        "ui.aiDesign" => {
             if !app.has_document() {
                 return Err("no document is open".into());
             }
-            app.ai.studio = Some(studio::Studio::new(app));
+            app.ai.open = true;
+            app.ai.show_settings = false;
+            app.ai.queued_design = true;
             Ok(json!({"open": true}))
+        }
+        "ui.aiSettings" => {
+            app.ai.show_settings = !(app.ai.open && app.ai.show_settings);
+            app.ai.open = true;
+            Ok(json!({"open": true, "settings": app.ai.show_settings}))
         }
         _ => {
             let agent = p.get("agent").map(|v| v.as_str().and_then(Agent::from_id).ok_or("agent: claude or codex")).transpose()?;
@@ -203,8 +230,13 @@ fn set_agent(app: &mut WordApp, agent: Agent) {
     save(app);
 }
 
-/// Load the open document's conversation when the document changes (not mid-turn).
+/// Load the settings once, and the open document's conversation when the document changes (not
+/// mid-turn).
 fn sync_document(app: &mut WordApp) {
+    if !app.ai.settings_loaded {
+        app.ai.settings = design::load(app.ai.store_dir.as_deref());
+        app.ai.settings_loaded = true;
+    }
     if app.ai.busy() {
         return;
     }
@@ -227,12 +259,15 @@ fn save(app: &WordApp) {
     }
 }
 
+fn save_settings(app: &WordApp) {
+    design::save(app.ai.store_dir.as_deref(), &app.ai.settings);
+}
+
 pub fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     sync_document(app);
     poll(app);
-    if let Some(prompt) = studio::show(app, ui.ctx()) {
-        app.ai.open = true;
-        send(app, ui.ctx(), prompt, tx("Tidy the headings for the contents", "Ordena los títulos para el índice"), None);
+    if std::mem::take(&mut app.ai.queued_design) {
+        design_document(app, ui.ctx());
     }
     if !app.ai.open {
         return;
@@ -243,7 +278,7 @@ pub fn show(app: &mut WordApp, ui: &mut egui::Ui) {
     }
 }
 
-/// The AI ribbon tab: the two agents, Document Design and how the agent works.
+/// The AI ribbon tab: the two agents, Design with AI, Colours and style, and Track changes.
 pub fn ribbon(app: &mut WordApp, ui: &mut egui::Ui) {
     use crate::widgets::{big, big_toggle_with, group, small};
     let (open, agent) = (app.ai.open, app.ai.agent());
@@ -251,26 +286,14 @@ pub fn ribbon(app: &mut WordApp, ui: &mut egui::Ui) {
         big_toggle_with(ui, app, "aiClaude", note("Claude"), "ui.aiPane", json!({"agent": "claude"}), open && agent == Agent::Claude);
         big_toggle_with(ui, app, "aiCodex", note("Codex"), "ui.aiPane", json!({"agent": "codex"}), open && agent == Agent::Codex);
     });
-    group(ui, tx("Document", "Documento"), None, app, |ui, app| {
-        big(ui, app, "aiDesign", tx("Document\nDesign", "Diseño del\ndocumento"), "ui.aiStudio", json!({}), false);
+    group(ui, tx("Design", "Diseño"), None, app, |ui, app| {
+        big(ui, app, "aiDesign", tx("Design\nwith AI", "Diseñar\ncon IA"), "ui.aiDesign", json!({}), false);
+        let on = open && app.ai.show_settings;
+        big_toggle_with(ui, app, "colors", tx("Colours\nand style", "Colores\ny estilo"), "ui.aiSettings", json!({}), on);
     });
-    group(ui, tx("How it works", "Cómo trabaja"), None, app, |ui, app| {
+    group(ui, tx("Changes", "Cambios"), None, app, |ui, app| {
         ui.vertical(|ui| {
-            let (sel, track) = (app.ai.selection_only, app.ai.track_changes);
-            if small(
-                ui,
-                app,
-                "aiCheck",
-                Some(tx("Selection only", "Solo la selección")),
-                tx("Selection only", "Solo la selección"),
-                "ui.aiPane",
-                json!({"value": open}),
-                sel,
-            )
-            .clicked()
-            {
-                app.ai.selection_only = !sel;
-            }
+            let track = app.ai.settings.track_changes;
             if small(
                 ui,
                 app,
@@ -283,7 +306,8 @@ pub fn ribbon(app: &mut WordApp, ui: &mut egui::Ui) {
             )
             .clicked()
             {
-                app.ai.track_changes = !track;
+                app.ai.settings.track_changes = !track;
+                save_settings(app);
             }
         });
     });
@@ -331,6 +355,27 @@ fn poll(app: &mut WordApp) {
 fn finish(app: &mut WordApp, ok: bool, secs: u32) {
     app.ai.running = None;
     let Some(turn) = app.ai.turn.take() else { return };
+    if turn.compact {
+        app.ai.conv.pending = None;
+        match turn.reply.filter(|r| ok && !r.trim().is_empty()) {
+            Some(summary) => {
+                // The next message starts a fresh session from the summary.
+                app.ai.conv.summary = Some(summary);
+                app.ai.conv.session = None;
+                note_msg(
+                    app,
+                    tx(
+                        "Conversation compacted: from here on it continues from a short summary, so each message costs fewer tokens.",
+                        "Conversación compactada: a partir de aquí sigue desde un resumen breve, así cada mensaje gasta menos tokens.",
+                    )
+                    .to_string(),
+                );
+            }
+            None => note_msg(app, tx("The conversation could not be compacted.", "No se pudo compactar la conversación.").to_string()),
+        }
+        save(app);
+        return;
+    }
     if let Some(text) = turn.reply {
         app.ai.conv.push(Msg::Assistant { text });
     }
@@ -369,39 +414,137 @@ fn add_attachments(app: &mut WordApp, paths: Vec<String>) {
     }
 }
 
-/// An answer put into the document at the caret, formatted (headings, lists, bold).
+/// An answer put into the document at the caret, formatted (headings, lists, bold); it replaces
+/// the selection when there is one.
 fn insert_reply(app: &mut WordApp, text: &str) {
     let _ = app.run("edit.paste", json!({"html": markdown::to_html(text)}));
 }
 
-/// The request with the user's options: scope, track changes, attached files.
-fn build_prompt(app: &WordApp, request: &str) -> String {
-    let mut p = request.to_string();
-    if app.ai.selection_only {
-        let sel = app.session.selected_text();
-        if !sel.trim().is_empty() {
-            p.push_str(&format!(
-                "\n\nWork only on the current selection and leave the rest of the document unchanged. The selected text is:\n\"\"\"\n{sel}\n\"\"\""
-            ));
+/// The text selected in the document, unless the user set it aside.
+pub fn selection(app: &WordApp) -> Option<String> {
+    if !app.has_document() {
+        return None;
+    }
+    let sel = app.session.selected_text();
+    let sel = sel.trim();
+    if sel.is_empty() || app.ai.skip_selection.as_deref() == Some(sel) {
+        return None;
+    }
+    Some(sel.to_string())
+}
+
+/// A short outline of the document (its size and headings), so a new session needn't read it
+/// to find its way.
+fn outline(app: &WordApp) -> String {
+    if !app.has_document() {
+        return "No document is open.".into();
+    }
+    let words = app.session.word_count();
+    let mut heads = Vec::new();
+    for b in app.session.doc.body.iter() {
+        if let wordcraft_doc::Block::Para(p) = b.as_ref() {
+            let style = p.props.style.as_deref().unwrap_or("");
+            let level = match style {
+                "Title" => Some(0),
+                s => s.strip_prefix("Heading").and_then(|n| n.parse::<usize>().ok()).filter(|n| *n <= 3),
+            };
+            if let Some(level) = level {
+                let text: String = p.plain_text().trim().chars().take(80).collect();
+                if !text.is_empty() {
+                    heads.push(format!("{}- {text}", "  ".repeat(level.saturating_sub(1))));
+                }
+            }
+        }
+        if heads.len() >= 40 {
+            heads.push("- …".into());
+            break;
         }
     }
-    if app.ai.track_changes {
+    let mut s = format!("The document has {words} words");
+    if heads.is_empty() {
+        s.push_str(" and no headings.");
+    } else {
+        s.push_str(". Its headings:\n");
+        s.push_str(&heads.join("\n"));
+    }
+    s
+}
+
+/// The request with what the agent needs to know: the selection, the document (on a new
+/// session), the design brief, track changes and the attached files.
+fn build_prompt(app: &mut WordApp, request: &str, kind: Kind) -> String {
+    let mut p = String::new();
+    let fresh = app.ai.conv.session.is_none();
+    if fresh && kind != Kind::Compact {
+        if let Some(sum) = &app.ai.conv.summary {
+            p.push_str(&format!("Earlier in this conversation (summary):\n{sum}\n\n"));
+        }
+        p.push_str(&outline(app));
+        p.push_str("\n\n");
+    }
+    p.push_str(request);
+    if kind == Kind::Compact {
+        return p;
+    }
+    if let Some(sel) = selection(app) {
+        let cut: String = sel.chars().take(MAX_SELECTION).collect();
+        let more = if cut.len() < sel.len() { " (cut short; get_text reads the rest)" } else { "" };
+        p.push_str(&format!("\n\nThe user's selection{more} — the request is about this text:\n\"\"\"\n{cut}\n\"\"\""));
+    }
+    // The design brief: on a new session (the agent keeps it) or for a new design.
+    let brief = match kind {
+        Kind::Design(d) => Some(d),
+        _ if fresh => {
+            let current = app.ai.conv.design.clone();
+            Some(match current.as_deref().and_then(design::direction) {
+                Some(d) => d,
+                None => design::next(&mut app.ai.settings, None),
+            })
+        }
+        _ => None,
+    };
+    if let Some(d) = brief {
+        app.ai.conv.design = Some(d.id.to_string());
+        p.push_str("\n\n");
+        p.push_str(&design::brief(&app.ai.settings, d));
+    }
+    if app.ai.settings.track_changes {
         p.push_str(
             "\n\nBefore editing, turn on Track Changes with execute review.trackChanges {\"value\": true} so the user can review every change.",
         );
     }
-    if !app.ai.attachments.is_empty() {
-        p.push_str("\n\nAttached files (read them for their content; insert a picture with execute insert.picture {\"path\": …}):");
-        for a in &app.ai.attachments {
-            p.push_str(&format!("\n- {}", a.display()));
+    p
+}
+
+/// The files the agent reads for the attachments (documents as Markdown), and the folders it may
+/// read them in.
+fn attachments_for_agent(app: &WordApp) -> (String, Vec<PathBuf>) {
+    if app.ai.attachments.is_empty() {
+        return (String::new(), Vec::new());
+    }
+    let mut text =
+        String::from("\n\nAttached files (read them when the request needs them; insert a picture with execute insert.picture {\"path\": …}):");
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    for a in &app.ai.attachments {
+        let (path, converted) = files::for_agent(a);
+        let name = a.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        if converted {
+            text.push_str(&format!("\n- {name}, as Markdown: {}", path.display()));
+        } else {
+            text.push_str(&format!("\n- {}", path.display()));
+        }
+        if let Some(d) = path.parent().map(PathBuf::from)
+            && !dirs.contains(&d)
+        {
+            dirs.push(d);
         }
     }
-    p
+    (text, dirs)
 }
 
 /// Run the agent on `request`; `shown` is what the conversation shows for it. `pending` keeps the
 /// original request of a task being continued.
-fn send(app: &mut WordApp, ctx: &egui::Context, request: &str, shown: &str, pending: Option<String>) {
+fn send(app: &mut WordApp, ctx: &egui::Context, request: &str, shown: &str, pending: Option<String>, kind: Kind) {
     if request.trim().is_empty() || app.ai.busy() {
         return;
     }
@@ -416,17 +559,15 @@ fn send(app: &mut WordApp, ctx: &egui::Context, request: &str, shown: &str, pend
         );
         return;
     };
-    let prompt = build_prompt(app, request);
-    let files = app.ai.attachments.iter().filter_map(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).collect();
-    app.ai.conv.push(Msg::User { text: shown.to_string(), files });
-    app.ai.conv.pending = Some(pending.unwrap_or_else(|| request.to_string()));
-    let job = agent::Job {
-        agent: app.ai.agent(),
-        model: app.ai.model,
-        port,
-        session: app.ai.conv.session.clone(),
-        dirs: app.ai.attachments.iter().filter_map(|p| p.parent().map(PathBuf::from)).collect(),
-    };
+    let mut prompt = build_prompt(app, request, kind);
+    let (files_text, dirs) = attachments_for_agent(app);
+    prompt.push_str(&files_text);
+    if kind != Kind::Compact {
+        let files = app.ai.attachments.iter().filter_map(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).collect();
+        app.ai.conv.push(Msg::User { text: shown.to_string(), files });
+        app.ai.conv.pending = Some(pending.unwrap_or_else(|| request.to_string()));
+    }
+    let job = agent::Job { agent: app.ai.agent(), model: app.ai.settings.model, port, session: app.ai.conv.session.clone(), dirs };
     let missing = match job.agent {
         Agent::Claude => tx(
             "Claude Code isn't installed. Install it from claude.com/claude-code and sign in, then try again.",
@@ -440,8 +581,9 @@ fn send(app: &mut WordApp, ctx: &egui::Context, request: &str, shown: &str, pend
     match agent::spawn(&job, &prompt, ctx.clone(), missing) {
         Ok(r) => {
             app.ai.running = Some(r);
-            app.ai.turn = Some(Turn { phase: Phase::Thinking, edits: 0, reply: None, error: None, stopped: false });
+            app.ai.turn = Some(Turn { phase: Phase::Thinking, edits: 0, reply: None, error: None, stopped: false, compact: kind == Kind::Compact });
             app.ai.attachments.clear();
+            app.ai.show_settings = false;
         }
         Err(e) => {
             app.ai.conv.pending = None;
@@ -449,6 +591,63 @@ fn send(app: &mut WordApp, ctx: &egui::Context, request: &str, shown: &str, pend
         }
     }
     save(app);
+    save_settings(app);
+}
+
+/// A slash command, if `text` is one: `/clear`, `/compact`, `/design`, `/colors` (or their Spanish
+/// names).
+pub fn slash(text: &str) -> Option<&'static str> {
+    let word = text.trim().strip_prefix('/')?.split_whitespace().next()?.to_lowercase();
+    Some(match word.as_str() {
+        "clear" | "limpiar" | "nuevo" | "new" => "clear",
+        "compact" | "compactar" => "compact",
+        "design" | "diseño" | "diseñar" | "diseno" | "disenar" => "design",
+        "colors" | "colours" | "colores" | "estilo" | "settings" | "ajustes" => "colors",
+        _ => return None,
+    })
+}
+
+/// What the user typed: a slash command or a message for the agent.
+fn submit(app: &mut WordApp, ctx: &egui::Context, text: &str) {
+    match slash(text) {
+        Some("clear") => new_conversation(app),
+        Some("compact") => compact(app, ctx),
+        Some("design") => design_document(app, ctx),
+        Some("colors") => app.ai.show_settings = true,
+        _ => send(app, ctx, text, text, None, Kind::Normal),
+    }
+}
+
+/// Boil the conversation down to a summary and go on from it in a fresh session.
+fn compact(app: &mut WordApp, ctx: &egui::Context) {
+    if app.ai.conv.session.is_none() {
+        note_msg(
+            app,
+            tx(
+                "There is nothing to compact yet: the next message already starts light.",
+                "Aún no hay nada que compactar: el próximo mensaje ya empieza ligero.",
+            )
+            .to_string(),
+        );
+        save(app);
+        return;
+    }
+    send(app, ctx, agent::COMPACT, "/compact", None, Kind::Compact);
+}
+
+/// A new design, different from the document's current one, made by the agent.
+fn design_document(app: &mut WordApp, ctx: &egui::Context) {
+    if app.ai.busy() {
+        return;
+    }
+    if !app.has_document() {
+        note_msg(app, tx("Open or create a document first.", "Abre o crea un documento primero.").to_string());
+        return;
+    }
+    let current = app.ai.conv.design.clone();
+    let d = design::next(&mut app.ai.settings, current.as_deref());
+    let shown = design::shown(d);
+    send(app, ctx, design::DESIGN, &shown, None, Kind::Design(d));
 }
 
 /// Pick up the interrupted task where it stopped.
@@ -456,7 +655,7 @@ fn continue_task(app: &mut WordApp, ctx: &egui::Context) {
     let Some(task) = app.ai.conv.pending.clone() else { return };
     // A resumed session remembers the task; a new one is told what it was.
     let request = if app.ai.conv.session.is_some() { agent::CONTINUE.to_string() } else { format!("{}\n\nThe task was: {task}", agent::CONTINUE) };
-    send(app, ctx, &request, tx("Continue where you left off", "Continúa donde lo dejaste"), Some(task));
+    send(app, ctx, &request, tx("Continue where you left off", "Continúa donde lo dejaste"), Some(task), Kind::Normal);
 }
 
 fn stop(app: &mut WordApp) {
@@ -510,8 +709,9 @@ mod tests {
         assert_eq!(a.run("ui.aiPane", json!({})).unwrap()["open"], false, "no agent: toggles");
         assert!(a.run("ui.aiPane", json!({"agent": "gpt"})).is_err());
         assert!(a.run("ui.aiPane", json!({"value": "yes"})).is_err());
-        a.run("ui.aiStudio", json!({})).unwrap();
-        assert!(a.ai.studio.is_some());
+        a.run("ui.aiDesign", json!({})).unwrap();
+        assert!(a.ai.open && a.ai.queued_design, "the design starts on the next frame");
+        assert_eq!(a.run("ui.aiSettings", json!({})).unwrap()["settings"], true);
     }
 
     #[test]
@@ -530,14 +730,60 @@ mod tests {
         let mut a = app();
         a.ai.key = Some("t".into());
         a.ai.conv.pending = Some("Escribe un informe".into());
-        a.ai.turn = Some(Turn { phase: Phase::Writing, edits: 3, reply: Some("Voy por la mitad".into()), error: None, stopped: true });
+        a.ai.turn =
+            Some(Turn { phase: Phase::Writing, edits: 3, reply: Some("Voy por la mitad".into()), error: None, stopped: true, compact: false });
         finish(&mut a, false, 12);
         assert_eq!(a.ai.conv.pending.as_deref(), Some("Escribe un informe"));
         assert_eq!(a.ai.conv.messages.last(), Some(&Msg::Stopped { by_user: true, detail: String::new() }));
-        a.ai.turn = Some(Turn { phase: Phase::Writing, edits: 2, reply: Some("Listo.".into()), error: None, stopped: false });
+        a.ai.turn = Some(Turn { phase: Phase::Writing, edits: 2, reply: Some("Listo.".into()), error: None, stopped: false, compact: false });
         finish(&mut a, true, 30);
         assert_eq!(a.ai.conv.pending, None);
         let n = a.ai.conv.messages.len();
         assert_eq!(a.ai.conv.messages[n - 2..], [Msg::Assistant { text: "Listo.".into() }, Msg::Work { edits: 2, secs: 30 }]);
+    }
+
+    #[test]
+    fn slash_commands_are_recognised_in_both_languages() {
+        assert_eq!(slash("/clear"), Some("clear"));
+        assert_eq!(slash(" /Compactar "), Some("compact"));
+        assert_eq!(slash("/diseño"), Some("design"));
+        assert_eq!(slash("/colores"), Some("colors"));
+        assert_eq!(slash("/nada"), None);
+        assert_eq!(slash("resume /clear"), None, "only at the start");
+    }
+
+    #[test]
+    fn the_selection_goes_with_the_request_unless_set_aside() {
+        let mut a = app();
+        a.run("caret.docStart", json!({})).unwrap();
+        a.run("select.paragraph", json!({})).unwrap();
+        let sel = selection(&a).expect("a selection");
+        let p = build_prompt(&mut a, "Traduce al inglés", Kind::Normal);
+        assert!(p.contains(&sel) && p.contains("The user's selection"), "{p}");
+        assert!(p.contains("Design brief") && p.contains("words"), "a new session gets the outline and a design brief: {p}");
+        a.ai.conv.session = Some("s".into());
+        a.ai.skip_selection = Some(sel.clone());
+        let p = build_prompt(&mut a, "Hola", Kind::Normal);
+        assert_eq!(p, "Hola", "a resumed session gets the request alone");
+    }
+
+    #[test]
+    fn compact_turns_the_conversation_into_a_summary_and_a_fresh_session() {
+        let mut a = app();
+        a.ai.key = Some("t".into());
+        a.ai.conv.session = Some("s1".into());
+        a.ai.turn = Some(Turn {
+            phase: Phase::Thinking,
+            edits: 0,
+            reply: Some("- Informe sobre algoritmos".into()),
+            error: None,
+            stopped: false,
+            compact: true,
+        });
+        finish(&mut a, true, 3);
+        assert_eq!(a.ai.conv.session, None);
+        assert_eq!(a.ai.conv.summary.as_deref(), Some("- Informe sobre algoritmos"));
+        let p = build_prompt(&mut a, "Sigue", Kind::Normal);
+        assert!(p.starts_with("Earlier in this conversation (summary):\n- Informe sobre algoritmos"), "{p}");
     }
 }

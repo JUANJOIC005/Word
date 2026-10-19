@@ -23,7 +23,7 @@ pub fn specs() -> Vec<CommandSpec> {
             sel_result(s)
         }),
         CommandSpec::new("insert.coverPage", "Cover Page", "Insert › Pages", cover_page)
-            .params(r#"{"title"?: string, "subtitle"?: string, "author"?: string, "style"?: "classic|band|minimal|modern", "accent"?: "RRGGBB"}"#),
+            .params(r#"{"title"?: string, "subtitle"?: string, "author"?: string, "style"?: "classic|band|minimal|modern|editorial|corporate|academic|bold|elegant|sidebar", "accent"?: "RRGGBB"}"#),
         CommandSpec::new("insert.table", "Table", "Insert › Tables", table).params(r#"{"rows": n, "cols": n, "style"?: string}"#),
         CommandSpec::new("insert.picture", "Pictures", "Insert › Illustrations", picture).params(r#"{"path"?: string, "data"?: base64, "width"?: pt, "alt"?: string}"#),
         CommandSpec::new("insert.icon", "Icons", "Insert › Illustrations", icon)
@@ -930,6 +930,9 @@ fn field(s: &mut Session, v: &Value) -> CmdResult {
     sel_result(s)
 }
 
+/// The cover page styles, for the AI's design briefs.
+pub const COVER_STYLES: [&str; 10] = ["classic", "band", "minimal", "modern", "editorial", "corporate", "academic", "bold", "elegant", "sidebar"];
+
 fn cover_page(s: &mut Session, v: &Value) -> CmdResult {
     let title = p::str(v, "title").unwrap_or("Document Title").to_string();
     let subtitle = p::str(v, "subtitle").unwrap_or("Document subtitle").to_string();
@@ -941,8 +944,24 @@ fn cover_page(s: &mut Session, v: &Value) -> CmdResult {
         "band" => cover_band(&title, &subtitle, &author, accent)?,
         "minimal" => cover_minimal(&title, &subtitle, &author)?,
         "modern" => cover_modern(&title, &subtitle, &author, accent)?,
+        "editorial" => cover_editorial(&title, &subtitle, &author, accent)?,
+        "corporate" => cover_corporate(&title, &subtitle, &author, accent)?,
+        "academic" => cover_academic(&title, &subtitle, &author, accent)?,
+        "bold" => cover_bold(&title, &subtitle, &author, accent)?,
+        "elegant" => cover_elegant(&title, &subtitle, &author, accent)?,
+        "sidebar" => cover_sidebar(&title, &subtitle, &author, accent)?,
         other => return Err(CmdError::Params(format!("unknown cover style `{other}`"))),
     };
+    // The cover keeps its own spacing, so the document's paragraph spacing can't push it onto
+    // a second page.
+    let mut blocks = blocks;
+    for b in &mut blocks {
+        if let Block::Para(p) = b {
+            p.props.space_before.get_or_insert(0.0);
+            p.props.space_after.get_or_insert(8.0);
+            p.props.line_spacing.get_or_insert(wordcraft_doc::props::LineSpacing::Multiple(1.15));
+        }
+    }
     let frag = wordcraft_doc::edit::Fragment { blocks, ..Default::default() };
     let start = s.doc.start_of(StoryRef::Body);
     let at = s.doc.split_paragraph(&start)?;
@@ -975,7 +994,7 @@ fn cover_classic(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Resu
     });
     blocks.push(Block::Para(t));
     blocks.push(Block::Para(Paragraph::with_text(subtitle, CharProps::default()).styled("Subtitle")));
-    blocks.extend(empty_paras(14));
+    blocks.extend(empty_paras(11));
     blocks.push(Block::Para(Paragraph::with_text(author, CharProps { bold: Some(true), color: Some(TextColor::Rgb(accent)), ..Default::default() })));
     blocks.push(cover_date(None, CharProps::default())?);
     Ok(blocks)
@@ -994,7 +1013,7 @@ fn cover_band(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<
     blocks.push(shaded(Paragraph::with_text(title, CharProps { size: Some(40.0), bold: Some(true), color: white, ..Default::default() })));
     blocks.push(shaded(Paragraph::with_text(subtitle, CharProps { size: Some(16.0), color: white, ..Default::default() })));
     blocks.extend((0..3).map(|_| shaded(Paragraph::new())));
-    blocks.extend(empty_paras(12));
+    blocks.extend(empty_paras(9));
     blocks.push(Block::Para(Paragraph::with_text(author, CharProps { bold: Some(true), size: Some(13.0), ..Default::default() })));
     blocks.push(cover_date(None, CharProps { color: Some(TextColor::Rgb(accent)), ..Default::default() })?);
     Ok(blocks)
@@ -1010,7 +1029,7 @@ fn cover_minimal(title: &str, subtitle: &str, author: &str) -> Result<Vec<Block>
     let mut blocks: Vec<Block> = empty_paras(10).collect();
     blocks.push(centred(Paragraph::with_text(title, CharProps { size: Some(36.0), ..Default::default() }).styled("Title")));
     blocks.push(centred(Paragraph::with_text(subtitle, CharProps { size: Some(14.0), color: grey, ..Default::default() })));
-    blocks.extend(empty_paras(12));
+    blocks.extend(empty_paras(10));
     blocks.push(centred(Paragraph::with_text(author, CharProps { size: Some(11.0), caps: Some(true), ..Default::default() })));
     blocks.push(cover_date(Some(Align::Center), CharProps { size: Some(10.0), color: grey, ..Default::default() })?);
     Ok(blocks)
@@ -1026,9 +1045,163 @@ fn cover_modern(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Resul
     let mut blocks: Vec<Block> = empty_paras(10).collect();
     blocks.push(barred(Paragraph::with_text(title, CharProps { size: Some(48.0), bold: Some(true), ..Default::default() })));
     blocks.push(barred(Paragraph::with_text(subtitle, CharProps { size: Some(18.0), color: Some(TextColor::Rgb(accent)), ..Default::default() })));
-    blocks.extend(empty_paras(12));
+    blocks.extend(empty_paras(10));
     blocks.push(Block::Para(Paragraph::with_text(author, CharProps { bold: Some(true), caps: Some(true), ..Default::default() })));
     blocks.push(cover_date(None, CharProps::default())?);
+    Ok(blocks)
+}
+
+/// A rule of `style` and `width` points in `color`.
+fn rule(style: wordcraft_doc::props::BorderStyle, width: f32, color: Rgb, space: f32) -> wordcraft_doc::props::Border {
+    wordcraft_doc::props::Border { style, width, color: Some(color), space }
+}
+
+/// A magazine cover: a small spaced kicker in the accent, a very large title low on the page and a
+/// thin rule over the author.
+fn cover_editorial(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<Vec<Block>, CmdError> {
+    let mut blocks: Vec<Block> = empty_paras(9).collect();
+    blocks.push(Block::Para(Paragraph::with_text(
+        subtitle,
+        CharProps {
+            size: Some(11.0),
+            bold: Some(true),
+            caps: Some(true),
+            spacing: Some(3.0),
+            color: Some(TextColor::Rgb(accent)),
+            ..Default::default()
+        },
+    )));
+    blocks.push(Block::Para(Paragraph::with_text(title, CharProps { size: Some(60.0), bold: Some(true), ..Default::default() })));
+    blocks.extend(empty_paras(5));
+    let mut by = Paragraph::with_text(author, CharProps { size: Some(11.0), caps: Some(true), spacing: Some(1.5), ..Default::default() });
+    by.props.borders = Some(wordcraft_doc::props::Borders {
+        top: Some(rule(wordcraft_doc::props::BorderStyle::Single, 0.75, Rgb(0x26, 0x26, 0x26), 8.0)),
+        ..Default::default()
+    });
+    blocks.push(Block::Para(by));
+    blocks.push(cover_date(None, CharProps { size: Some(10.0), color: Some(TextColor::Rgb(Rgb(0x6B, 0x6B, 0x6B))), ..Default::default() })?);
+    Ok(blocks)
+}
+
+/// A business report: a thin accent strip at the top, the title in the middle and a shaded
+/// strip at the foot with the author in white.
+fn cover_corporate(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<Vec<Block>, CmdError> {
+    let white = Some(TextColor::Rgb(Rgb::WHITE));
+    let shaded = |mut p: Paragraph| {
+        p.props.shading = Some(accent);
+        p.props.indent_left = Some(14.0);
+        Block::Para(p)
+    };
+    let mut blocks = vec![shaded(Paragraph::with_text(" ", CharProps { size: Some(6.0), ..Default::default() }))];
+    blocks.extend(empty_paras(7));
+    blocks.push(Block::Para(Paragraph::with_text(
+        title,
+        CharProps { size: Some(38.0), bold: Some(true), color: Some(TextColor::Rgb(accent)), ..Default::default() },
+    )));
+    blocks.push(Block::Para(Paragraph::with_text(
+        subtitle,
+        CharProps { size: Some(16.0), color: Some(TextColor::Rgb(Rgb(0x59, 0x59, 0x59))), ..Default::default() },
+    )));
+    blocks.extend(empty_paras(9));
+    blocks.push(shaded(Paragraph::new()));
+    blocks.push(shaded(Paragraph::with_text(author, CharProps { size: Some(13.0), bold: Some(true), color: white, ..Default::default() })));
+    let date = cover_date(None, CharProps { color: white, ..Default::default() })?;
+    blocks.push(match date {
+        Block::Para(p) => shaded(p),
+        other => other,
+    });
+    Ok(blocks)
+}
+
+/// A thesis or paper: everything centred, the title between two rules, the author and date
+/// below.
+fn cover_academic(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<Vec<Block>, CmdError> {
+    let centred = |mut p: Paragraph| {
+        p.props.align = Some(Align::Center);
+        Block::Para(p)
+    };
+    let line = rule(wordcraft_doc::props::BorderStyle::Single, 1.0, accent, 10.0);
+    let mut blocks: Vec<Block> = empty_paras(9).collect();
+    let mut t = Paragraph::with_text(title, CharProps { size: Some(30.0), bold: Some(true), ..Default::default() });
+    t.props.align = Some(Align::Center);
+    t.props.borders = Some(wordcraft_doc::props::Borders { top: Some(line), bottom: Some(line), ..Default::default() });
+    blocks.push(Block::Para(t));
+    blocks.push(centred(Paragraph::with_text(subtitle, CharProps { size: Some(14.0), italic: Some(true), ..Default::default() })));
+    blocks.extend(empty_paras(8));
+    blocks.push(centred(Paragraph::with_text(author, CharProps { size: Some(13.0), ..Default::default() })));
+    blocks.push(cover_date(Some(Align::Center), CharProps { size: Some(11.0), ..Default::default() })?);
+    Ok(blocks)
+}
+
+/// A full colour block: the whole cover in the accent with the text in white.
+fn cover_bold(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<Vec<Block>, CmdError> {
+    let white = Some(TextColor::Rgb(Rgb::WHITE));
+    let shaded = |mut p: Paragraph| {
+        p.props.shading = Some(accent);
+        p.props.indent_left = Some(24.0);
+        p.props.indent_right = Some(24.0);
+        Block::Para(p)
+    };
+    let mut blocks: Vec<Block> = (0..8).map(|_| shaded(Paragraph::new())).collect();
+    blocks.push(shaded(Paragraph::with_text(title, CharProps { size: Some(46.0), bold: Some(true), color: white, ..Default::default() })));
+    blocks.push(shaded(Paragraph::with_text(subtitle, CharProps { size: Some(16.0), color: white, ..Default::default() })));
+    blocks.extend((0..8).map(|_| shaded(Paragraph::new())));
+    blocks.push(shaded(Paragraph::with_text(
+        author,
+        CharProps { bold: Some(true), caps: Some(true), spacing: Some(1.5), color: white, ..Default::default() },
+    )));
+    let date = cover_date(None, CharProps { color: white, ..Default::default() })?;
+    blocks.push(match date {
+        Block::Para(p) => shaded(p),
+        other => other,
+    });
+    Ok(blocks)
+}
+
+/// A refined cover: centred serif-like type between double rules, the subtitle in italics and the
+/// author in spaced capitals.
+fn cover_elegant(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<Vec<Block>, CmdError> {
+    let centred = |mut p: Paragraph| {
+        p.props.align = Some(Align::Center);
+        Block::Para(p)
+    };
+    let double = rule(wordcraft_doc::props::BorderStyle::Double, 3.0, accent, 12.0);
+    let mut blocks: Vec<Block> = empty_paras(8).collect();
+    let mut t = Paragraph::with_text(title, CharProps { size: Some(34.0), caps: Some(true), spacing: Some(2.0), ..Default::default() });
+    t.props.align = Some(Align::Center);
+    t.props.borders = Some(wordcraft_doc::props::Borders { top: Some(double), bottom: Some(double), ..Default::default() });
+    blocks.push(Block::Para(t));
+    blocks.push(centred(Paragraph::with_text(
+        subtitle,
+        CharProps { size: Some(15.0), italic: Some(true), color: Some(TextColor::Rgb(accent)), ..Default::default() },
+    )));
+    blocks.extend(empty_paras(8));
+    blocks.push(centred(Paragraph::with_text(author, CharProps { size: Some(11.0), caps: Some(true), spacing: Some(3.0), ..Default::default() })));
+    blocks.push(cover_date(Some(Align::Center), CharProps { size: Some(10.0), italic: Some(true), ..Default::default() })?);
+    Ok(blocks)
+}
+
+/// An accent line down the whole left side of the cover, with the title and author along it.
+fn cover_sidebar(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<Vec<Block>, CmdError> {
+    let bar = rule(wordcraft_doc::props::BorderStyle::Single, 4.5, accent, 16.0);
+    let barred = |mut p: Paragraph| {
+        p.props.borders = Some(wordcraft_doc::props::Borders { left: Some(bar), ..Default::default() });
+        p.props.indent_left = Some(20.0);
+        Block::Para(p)
+    };
+    let mut blocks: Vec<Block> = (0..4).map(|_| barred(Paragraph::new())).collect();
+    blocks.push(barred(Paragraph::with_text(
+        subtitle,
+        CharProps { size: Some(12.0), caps: Some(true), spacing: Some(2.0), color: Some(TextColor::Rgb(accent)), ..Default::default() },
+    )));
+    blocks.push(barred(Paragraph::with_text(title, CharProps { size: Some(44.0), bold: Some(true), ..Default::default() })));
+    blocks.extend((0..12).map(|_| barred(Paragraph::new())));
+    blocks.push(barred(Paragraph::with_text(author, CharProps { bold: Some(true), ..Default::default() })));
+    let date = cover_date(None, CharProps { color: Some(TextColor::Rgb(Rgb(0x6B, 0x6B, 0x6B))), ..Default::default() })?;
+    blocks.push(match date {
+        Block::Para(p) => barred(p),
+        other => other,
+    });
     Ok(blocks)
 }
 
@@ -1040,7 +1213,7 @@ mod tests {
     /// with a page break; the band shades its block in the accent; an unknown style is refused.
     #[test]
     fn cover_page_styles_build_their_own_layouts() {
-        for style in ["classic", "band", "minimal", "modern"] {
+        for style in COVER_STYLES {
             let mut s = Session::new(wordcraft_doc::Document::new());
             s.run("text.insert", &json!({"text": "Body"})).unwrap();
             s.run("insert.coverPage", &json!({"title": "Plan", "subtitle": "2027", "author": "Ana", "style": style, "accent": "8C2F39"})).unwrap();
