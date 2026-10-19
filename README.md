@@ -26,15 +26,22 @@
 La pestaña **IA**, junto a Ayuda, tiene dos botones para elegir el agente — **Claude** (Claude Code) o
 **Codex** — que abren un chat dedicado donde el agente escribe y edita en directo el documento abierto:
 
-- Chat limpio: solo tus mensajes y sus respuestas; mientras trabaja, una línea en vivo dice qué hace
-  («Escribiendo», «Diseñando la portada»…) sin mostrar herramientas ni pasos técnicos.
-- Adjunta archivos (texto, PDF, imágenes) desde el botón **+**; el agente los lee y puede insertar imágenes.
-- **Diseño del documento**: portada (clásica, banda, minimalista, moderna), paleta y tipografía,
-  índice, numeración, encabezado y espaciado, con vista previa. Se aplica al instante sin gastar tokens.
+- Chat limpio: tus mensajes y sus respuestas en Markdown cuidado; mientras trabaja, una línea en vivo dice qué
+  hace («Escribiendo», «Diseñando la portada»…) sin mostrar herramientas ni pasos técnicos.
+- Selección automática: si hay texto seleccionado, la petición se aplica solo a él (traducir, resumir,
+  mejorar…) y **Sustituir selección** pone la respuesta en su lugar.
+- Resúmenes, traducciones y explicaciones se responden en el chat; el documento solo cambia cuando se pide.
+- **Diseñar con IA**: la IA diseña el documento (portada, tipografía, colores, estilos, índice) siguiendo uno
+  de 10 estilos (Editorial, Corporativo, Académico, Audaz, Elegante, Lateral…) y nunca repite el último; al
+  crear un documento lo diseña sin que se lo pidas. **Colores y estilo** fija la paleta y la tipografía.
+- Adjuntos desde **+**: Word, ODT, RTF y HTML se convierten a Markdown (y los PDF a texto con `pdftotext`)
+  antes de que el agente los lea, para gastar menos tokens.
+- Comandos: `/clear` empieza de cero, `/compact` resume la conversación para seguir con menos tokens,
+  `/diseño` y `/colores`.
 - Continuidad: cada documento guarda su conversación y la sesión del agente; si una tarea se detiene
   (o se cierra la app), **Continuar** sigue donde se quedó sin repetir lo hecho.
-- Ahorro de tokens: prompt de sistema propio y corto, solo las herramientas del documento, sesiones
-  reanudadas y modelo Automático (Sonnet) por defecto; Opus y Haiku a un clic.
+- Ahorro de tokens: prompt de sistema propio y corto, solo las herramientas del documento, esquema del
+  documento en el primer mensaje, sesiones reanudadas y modelo Automático (Sonnet) por defecto.
 
 Usa tu propia instalación de `claude` o `codex` (tu cuenta y tu plan). La app arranca su canal de
 control local y conecta el agente con `word-cli mcp --connect`; el código está en

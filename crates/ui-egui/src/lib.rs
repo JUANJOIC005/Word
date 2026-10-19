@@ -1682,7 +1682,7 @@ impl WordApp {
                 ));
             }
             // AI tab (Word fork): the chat with an agent, and Document Design.
-            "ui.aiPane" | "ui.aiStudio" => return Some(ai_pane::command(self, id, p)),
+            "ui.aiPane" | "ui.aiDesign" | "ui.aiSettings" => return Some(ai_pane::command(self, id, p)),
             "ui.caretAnimation" => {
                 // File › Options › Advanced › Animation: `value` true or false turns the caret's
                 // glide and fading blink on or off; no value reads it.
@@ -2612,6 +2612,7 @@ pub(crate) fn works_without_document(id: &str) -> bool {
             | "ui.fileBrowser"
             | "ui.makeDefaultApp"
             | "ui.aiPane"
+            | "ui.aiSettings"
             | "ui.caretAnimation"
             | "ui.startScreen"
     ) || id.starts_with("help.")

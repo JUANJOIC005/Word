@@ -1,5 +1,6 @@
 //! The chat pane: a header with the agent and its model, the conversation (a welcome screen with
-//! suggestions while it is empty) and the message box.
+//! suggestions while it is empty, or Colours and style) and the message box with its slash
+//! commands.
 
 use egui::{Color32, CornerRadius, Key, KeyboardShortcut, Margin, Modifiers, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
@@ -10,25 +11,40 @@ use crate::icons;
 use crate::theme::{Tokens, medium, regular, semibold};
 
 /// Requests behind the welcome screen's suggestions.
-const PROOFREAD: &str = "Proofread the whole document: fix spelling, grammar and punctuation and make unclear sentences clearer, \
-without changing the meaning, the tone or the formatting.";
-const SUMMARIZE: &str = "Write a short, clear summary of the document and put it at the beginning under a heading, in the \
-document's language.";
+const PROOFREAD: &str = "Proofread the document (or only the selected text, if there is one) in place: fix spelling, grammar and \
+punctuation and make unclear sentences clearer, without changing the meaning, the tone or the formatting.";
+const SUMMARIZE: &str = "Summarize the document (or only the selected text, if there is one) here in the chat, in its language: \
+the key points as short bullets, then one line with the conclusion. Don't change the document.";
+
+/// The slash commands: what they do, their names (the first is shown) and a line about them.
+const SLASH: [(&str, [&str; 2], &str, &str); 4] = [
+    ("clear", ["/clear", "/limpiar"], "Start a new conversation (uses no tokens)", "Empieza una conversación nueva (no gasta tokens)"),
+    (
+        "compact",
+        ["/compact", "/compactar"],
+        "Summarize the chat so far to keep going with fewer tokens",
+        "Resume lo hablado para seguir gastando menos tokens",
+    ),
+    ("design", ["/design", "/diseño"], "A new, different design for the document", "Un diseño nuevo y distinto para el documento"),
+    ("colors", ["/colors", "/colores"], "The colours and type the AI uses", "Los colores y la tipografía que usa la IA"),
+];
 
 /// Something the user asked for while the pane was drawn, done after drawing.
 enum Act {
     Fill(&'static str),
     Send(&'static str, &'static str),
-    Studio,
+    Design,
     Continue,
     Insert(String),
     Attach,
     NewChat,
     Stop,
     Agent(Agent),
+    Submit(String),
+    SkipSelection(String),
 }
 
-fn mix(a: Color32, b: Color32, k: f32) -> Color32 {
+pub(super) fn mix(a: Color32, b: Color32, k: f32) -> Color32 {
     let l = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * k).round() as u8;
     Color32::from_rgb(l(a.r(), b.r()), l(a.g(), b.g()), l(a.b(), b.b()))
 }
@@ -122,7 +138,11 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                 .show(ui, |ui| {
                     composer(app, ui, &t, &mut act);
                 });
-            conversation(app, ui, &t, &mut act);
+            if app.ai.show_settings {
+                settings_view(app, ui, &t);
+            } else {
+                conversation(app, ui, &t, &mut act);
+            }
         });
     let ctx = ui.ctx().clone();
     match act {
@@ -131,24 +151,43 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             app.ai.input = text.to_string();
             app.ai.focus_input = true;
         }
-        Some(Act::Send(request, shown)) => super::send(app, &ctx, request, shown, None),
-        Some(Act::Studio) => {
-            let _ = app.run("ui.aiStudio", serde_json::json!({}));
-        }
+        Some(Act::Send(request, shown)) => super::send(app, &ctx, request, shown, None, super::Kind::Normal),
+        Some(Act::Design) => super::design_document(app, &ctx),
         Some(Act::Continue) => super::continue_task(app, &ctx),
         Some(Act::Insert(text)) => super::insert_reply(app, &text),
         Some(Act::Attach) => super::pick_attachments(app),
         Some(Act::NewChat) => super::new_conversation(app),
         Some(Act::Stop) => super::stop(app),
         Some(Act::Agent(a)) => super::set_agent(app, a),
+        Some(Act::Submit(text)) => super::submit(app, &ctx, &text),
+        Some(Act::SkipSelection(sel)) => app.ai.skip_selection = Some(sel),
     }
+}
+
+/// Colours and style, in place of the conversation.
+fn settings_view(app: &mut WordApp, ui: &mut Ui, t: &Tokens) {
+    egui::ScrollArea::vertical().id_salt("ai_settings").auto_shrink([false, false]).show(ui, |ui| {
+        ui.add_space(10.0);
+        let w = ui.available_width() - 32.0;
+        ui.horizontal(|ui| {
+            ui.add_space(16.0);
+            ui.vertical(|ui| {
+                ui.set_width(w);
+                super::design::settings(app, ui, t);
+                if super::design::pill_button(ui, tx("Back to the chat", "Volver al chat"), true, t).clicked() {
+                    app.ai.show_settings = false;
+                }
+                ui.add_space(16.0);
+            });
+        });
+    });
 }
 
 fn header(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
     let agent = app.ai.agent();
     ui.horizontal(|ui| {
         // The agent: its mark, name and state; a click switches agent.
-        let (r, resp) = ui.allocate_exact_size(vec2(190.0, 36.0), Sense::click());
+        let (r, resp) = ui.allocate_exact_size(vec2(170.0, 36.0), Sense::click());
         if resp.hovered() {
             ui.painter().rect_filled(r.expand(3.0), CornerRadius::same(8), t.hover);
         }
@@ -187,7 +226,13 @@ fn header(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
             if round_button(ui, "close", tx("Close", "Cerrar"), 28.0, t).clicked() {
                 app.ai.open = false;
             }
-            if !app.ai.conv.messages.is_empty() && round_button(ui, "aiNewChat", tx("New conversation", "Nueva conversación"), 28.0, t).clicked() {
+            let on = app.ai.show_settings;
+            if round_button(ui, "options", tx("Colours and style", "Colores y estilo"), 28.0, t).clicked() {
+                app.ai.show_settings = !on;
+            }
+            if !app.ai.conv.messages.is_empty()
+                && round_button(ui, "aiNewChat", tx("New conversation (/clear)", "Nueva conversación (/clear)"), 28.0, t).clicked()
+            {
                 *act = Some(Act::NewChat);
             }
             if agent == Agent::Claude {
@@ -200,7 +245,7 @@ fn header(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
 
 /// The model in a small pill; a click lists the others with what each is good at.
 fn model_pill(app: &mut WordApp, ui: &mut Ui, t: &Tokens) {
-    let label = model_label(app.ai.model);
+    let label = model_label(app.ai.settings.model);
     let g = ui.painter().layout_no_wrap(label.to_string(), medium(11.5), t.text);
     let (r, resp) = ui.allocate_exact_size(vec2(g.size().x + 30.0, 26.0), Sense::click());
     ui.painter().rect_filled(r, CornerRadius::same(13), if resp.hovered() { t.pressed } else { t.hover });
@@ -209,9 +254,10 @@ fn model_pill(app: &mut WordApp, ui: &mut Ui, t: &Tokens) {
     let resp = resp.on_hover_text(tx("Model", "Modelo"));
     egui::Popup::menu(&resp).show(|ui| {
         for m in Model::ALL {
-            let on = app.ai.model == m;
+            let on = app.ai.settings.model == m;
             if menu_row(ui, model_label(m), model_hint(m), on, t, |p, r| icons::paint(p, r.shrink(4.0), "aiSpark", t.icon, t.accent)).clicked() {
-                app.ai.model = m;
+                app.ai.settings.model = m;
+                super::save_settings(app);
                 ui.close();
             }
         }
@@ -220,28 +266,42 @@ fn model_pill(app: &mut WordApp, ui: &mut Ui, t: &Tokens) {
 
 fn conversation(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
     let agent = app.ai.agent();
+    let has_sel = super::selection(app).is_some();
     egui::ScrollArea::vertical().id_salt("ai_chat").stick_to_bottom(true).auto_shrink([false, false]).show(ui, |ui| {
-        ui.add_space(8.0);
-        let w = ui.available_width() - 32.0;
+        ui.add_space(10.0);
+        let w = ui.available_width() - 36.0;
         ui.horizontal(|ui| {
-            ui.add_space(16.0);
+            ui.add_space(18.0);
             ui.vertical(|ui| {
                 ui.set_width(w);
                 ui.spacing_mut().item_spacing = vec2(8.0, 6.0);
                 if app.ai.conv.messages.is_empty() && app.ai.turn.is_none() {
                     welcome(ui, agent, t, act);
                 }
-                let last = app.ai.conv.messages.len().saturating_sub(1);
+                let msgs = &app.ai.conv.messages;
+                let last = msgs.len().saturating_sub(1);
                 let can_continue = app.ai.conv.pending.is_some() && !app.ai.busy();
-                for (i, m) in app.ai.conv.messages.iter().enumerate() {
-                    match m {
+                let mut i = 0;
+                while i < msgs.len() {
+                    match &msgs[i] {
                         Msg::User { text, files } => user_bubble(ui, text, files, t),
-                        Msg::Assistant { text } => assistant(ui, text, agent, t, act),
+                        Msg::Assistant { text } => {
+                            // The answer carries its turn's summary in its footer.
+                            let meta = match msgs.get(i + 1) {
+                                Some(Msg::Work { edits, secs }) => {
+                                    i += 1;
+                                    Some((*edits, *secs))
+                                }
+                                _ => None,
+                            };
+                            assistant(ui, text, meta, has_sel, agent, t, act);
+                        }
                         Msg::Work { edits, secs } => work_line(ui, *edits, *secs, t),
                         Msg::Stopped { by_user, detail } => stopped_card(ui, *by_user, detail, can_continue && i == last, agent, t, act),
                         Msg::Note { text } => note_line(ui, text, t),
                     }
-                    ui.add_space(8.0);
+                    ui.add_space(12.0);
+                    i += 1;
                 }
                 if let Some(turn) = &app.ai.turn {
                     let started = app.ai.running.as_ref().map_or(0.0, |r| r.started);
@@ -255,7 +315,7 @@ fn conversation(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act
 
 /// The empty conversation: a greeting and what the assistant can do, as cards.
 fn welcome(ui: &mut Ui, agent: Agent, t: &Tokens, act: &mut Option<Act>) {
-    ui.add_space((ui.available_height() * 0.08).clamp(8.0, 48.0));
+    ui.add_space((ui.available_height() * 0.06).clamp(8.0, 40.0));
     let w = ui.available_width();
     let (r, _) = ui.allocate_exact_size(vec2(w, 56.0), Sense::hover());
     avatar(ui.painter(), Rect::from_center_size(r.center(), vec2(52.0, 52.0)), agent, t);
@@ -263,7 +323,7 @@ fn welcome(ui: &mut Ui, agent: Agent, t: &Tokens, act: &mut Option<Act>) {
     centred(ui, tx("What shall we work on?", "¿En qué trabajamos hoy?"), semibold(19.0), t.text);
     centred(
         ui,
-        &txf("{name} edits your document live while you talk.", "{name} edita tu documento en directo mientras habláis.", name(agent)),
+        tx("Select text in the document and I'll work on just that.", "Selecciona texto en el documento y trabajaré solo sobre eso."),
         regular(12.5),
         t.text_dim,
     );
@@ -272,32 +332,32 @@ fn welcome(ui: &mut Ui, agent: Agent, t: &Tokens, act: &mut Option<Act>) {
         (
             "aiWrite",
             tx("Draft a document", "Redactar un documento"),
-            tx("Tell me the idea and I'll write it", "Cuéntame la idea y lo escribo"),
+            tx("Written and designed for you", "Escrito y diseñado para ti"),
             Act::Fill(tx("Write a document about ", "Escribe un documento sobre ")),
         ),
         (
             "aiDesign",
-            tx("Design the document", "Diseñar el documento"),
-            tx("Cover, contents, colours and type", "Portada, índice, colores y tipografía"),
-            Act::Studio,
+            tx("Design with AI", "Diseñar con IA"),
+            tx("Cover, type and colours, new each time", "Portada, tipografía y colores, distinto cada vez"),
+            Act::Design,
         ),
         (
             "aiProof",
             tx("Proofread", "Revisar y corregir"),
             tx("Spelling, grammar and clarity", "Ortografía, gramática y claridad"),
-            Act::Send(PROOFREAD, tx("Proofread the document", "Revisa y corrige el documento")),
+            Act::Send(PROOFREAD, tx("Proofread and correct", "Revisa y corrige")),
         ),
         (
             "aiSummary",
             tx("Summarize", "Resumir"),
-            tx("A clear summary at the beginning", "Un resumen claro al principio"),
-            Act::Send(SUMMARIZE, tx("Summarize the document", "Resume el documento")),
+            tx("The key points, here in the chat", "Las ideas clave, aquí en el chat"),
+            Act::Send(SUMMARIZE, tx("Summarize", "Resume")),
         ),
         (
             "aiTranslate",
             tx("Translate", "Traducir"),
-            tx("Into any language, keeping the format", "A cualquier idioma, manteniendo el formato"),
-            Act::Fill(tx("Translate the document into ", "Traduce el documento al ")),
+            tx("The selection or the whole text", "La selección o el texto entero"),
+            Act::Fill(tx("Translate into ", "Traduce al ")),
         ),
     ];
     for (icon, title, hint, a) in cards {
@@ -306,6 +366,13 @@ fn welcome(ui: &mut Ui, agent: Agent, t: &Tokens, act: &mut Option<Act>) {
         }
         ui.add_space(2.0);
     }
+    ui.add_space(8.0);
+    centred(
+        ui,
+        tx("Type / for commands such as /clear and /compact", "Escribe / para ver comandos como /clear y /compact"),
+        regular(11.0),
+        t.text_dim,
+    );
 }
 
 fn centred(ui: &mut Ui, text: &str, font: egui::FontId, color: Color32) {
@@ -358,42 +425,70 @@ fn user_bubble(ui: &mut Ui, text: &str, files: &[String], t: &Tokens) {
     }
 }
 
-fn assistant(ui: &mut Ui, text: &str, agent: Agent, t: &Tokens, act: &mut Option<Act>) {
-    ui.horizontal_top(|ui| {
-        let (a, _) = ui.allocate_exact_size(vec2(24.0, 24.0), Sense::hover());
+/// An answer: a small byline, the text set in clean type and a quiet footer with its actions and
+/// what the turn did.
+fn assistant(ui: &mut Ui, text: &str, meta: Option<(u32, u32)>, has_sel: bool, agent: Agent, t: &Tokens, act: &mut Option<Act>) {
+    ui.horizontal(|ui| {
+        let (a, _) = ui.allocate_exact_size(vec2(18.0, 18.0), Sense::hover());
         avatar(ui.painter(), a, agent, t);
-        ui.add_space(4.0);
-        ui.vertical(|ui| {
-            ui.set_width(ui.available_width());
-            ui.add_space(3.0);
-            markdown::show(ui, text, t);
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 2.0;
-                if crate::widgets::icon_button(ui, "copy", tx("Copy", "Copiar")).clicked() {
-                    ui.ctx().copy_text(text.to_string());
-                }
-                if crate::widgets::icon_button(ui, "aiInsert", tx("Insert in the document", "Insertar en el documento")).clicked() {
-                    *act = Some(Act::Insert(text.to_string()));
-                }
+        ui.add_space(2.0);
+        ui.label(egui::RichText::new(name(agent)).font(semibold(12.0)).color(t.text_dim));
+    });
+    ui.add_space(2.0);
+    markdown::show(ui, text, t);
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        if action(ui, "copy", tx("Copy", "Copiar"), t).clicked() {
+            ui.ctx().copy_text(text.to_string());
+        }
+        let (label, tip) = if has_sel {
+            (tx("Replace selection", "Sustituir selección"), tx("Put it in place of the selected text", "Ponerlo en lugar del texto seleccionado"))
+        } else {
+            (tx("Insert", "Insertar"), tx("Insert at the cursor, with its format", "Insertar en el cursor, con su formato"))
+        };
+        if action(ui, "aiInsert", label, t).on_hover_text(tip).clicked() {
+            *act = Some(Act::Insert(text.to_string()));
+        }
+        if let Some((edits, secs)) = meta {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(egui::RichText::new(meta_text(edits, secs)).font(regular(11.0)).color(t.text_dim));
             });
-        });
+        }
     });
 }
 
-/// What a finished turn did, in one quiet line.
-fn work_line(ui: &mut Ui, edits: u32, secs: u32, t: &Tokens) {
+/// A quiet footer action: an icon and a word, lit on hover.
+fn action(ui: &mut Ui, icon: &str, text: &str, t: &Tokens) -> egui::Response {
+    let g = ui.painter().layout_no_wrap(text.to_string(), regular(11.5), t.text_dim);
+    let (r, resp) = ui.allocate_exact_size(vec2(g.size().x + 32.0, 24.0), Sense::click());
+    if resp.hovered() {
+        ui.painter().rect_filled(r, CornerRadius::same(7), t.hover);
+    }
+    let c = if resp.hovered() { t.text } else { t.text_dim };
+    icons::paint(ui.painter(), Rect::from_center_size(pos2(r.min.x + 13.0, r.center().y), vec2(13.0, 13.0)), icon, c, t.accent);
+    ui.painter().galley(pos2(r.min.x + 24.0, r.center().y - g.size().y / 2.0), g, c);
+    resp
+}
+
+/// "2 changes · 6 s", or just the time when nothing in the document changed.
+fn meta_text(edits: u32, secs: u32) -> String {
     let time = if secs >= 60 { format!("{} min {} s", secs / 60, secs % 60) } else { format!("{secs} s") };
-    let text = match edits {
-        0 => txf("Done in {name}", "Hecho en {name}", &time),
-        1 => txf("1 change in the document · {name}", "1 cambio en el documento · {name}", &time),
-        n => super::noted(txf("{n} changes in the document · {name}", "{n} cambios en el documento · {name}", &time).replace("{n}", &n.to_string())),
-    };
-    let g = ui.painter().layout_no_wrap(text, regular(11.5), t.text_dim);
-    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
-    let pill = Rect::from_min_size(pos2(r.min.x + 30.0, r.min.y), vec2(g.size().x + 34.0, 24.0));
-    ui.painter().rect_filled(pill, CornerRadius::same(12), t.hover);
-    icons::paint(ui.painter(), Rect::from_center_size(pos2(pill.min.x + 13.0, pill.center().y), vec2(12.0, 12.0)), "aiCheck", t.green, t.green);
-    ui.painter().galley(pos2(pill.min.x + 25.0, pill.center().y - g.size().y / 2.0), g, t.text_dim);
+    match edits {
+        0 => super::noted(time),
+        1 => txf("1 change · {name}", "1 cambio · {name}", &time),
+        n => super::noted(txf("{n} changes · {name}", "{n} cambios · {name}", &time).replace("{n}", &n.to_string())),
+    }
+}
+
+/// What a turn without words did, in one quiet line.
+fn work_line(ui: &mut Ui, edits: u32, secs: u32, t: &Tokens) {
+    ui.horizontal(|ui| {
+        let (r, _) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
+        icons::paint(ui.painter(), r, "aiCheck", t.green, t.green);
+        let text = if edits == 0 { txf("Done · {name}", "Hecho · {name}", &meta_text(0, secs)) } else { meta_text(edits, secs) };
+        ui.label(egui::RichText::new(text).font(regular(11.5)).color(t.text_dim));
+    });
 }
 
 fn note_line(ui: &mut Ui, text: &str, t: &Tokens) {
@@ -437,7 +532,7 @@ fn stopped_card(ui: &mut Ui, by_user: bool, detail: &str, can_continue: bool, ag
                     .color(t.text_dim),
                 );
                 ui.add_space(6.0);
-                if super::studio::pill_button(ui, tx("Continue", "Continuar"), true, t).clicked() {
+                if super::design::pill_button(ui, tx("Continue", "Continuar"), true, t).clicked() {
                     *act = Some(Act::Continue);
                 }
             }
@@ -480,17 +575,42 @@ fn live(ui: &mut Ui, phase: Phase, edits: u32, started: f64, agent: Agent, t: &T
     }
 }
 
+/// The slash commands that start with what was typed.
+fn slash_matches(input: &str) -> Vec<&'static (&'static str, [&'static str; 2], &'static str, &'static str)> {
+    let typed = input.trim().to_lowercase();
+    if !typed.starts_with('/') || typed.contains(' ') {
+        return Vec::new();
+    }
+    SLASH.iter().filter(|(_, names, _, _)| names.iter().any(|n| n.starts_with(typed.as_str()))).collect()
+}
+
 fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
     let busy = app.ai.busy();
     let agent = app.ai.agent();
-    // The options in force, as chips that turn them off.
-    if app.ai.selection_only || app.ai.track_changes {
+    let sel = super::selection(app);
+    // What goes with the message: the selection and track changes, as chips.
+    if sel.is_some() || app.ai.settings.track_changes {
         ui.horizontal_wrapped(|ui| {
-            if app.ai.selection_only && chip(ui, "aiCheck", tx("Selection only", "Solo la selección"), t).clicked() {
-                app.ai.selection_only = false;
+            if let Some(sel) = &sel {
+                let words = sel.split_whitespace().count();
+                let label = if words == 1 {
+                    tx("Selection · 1 word", "Selección · 1 palabra").to_string()
+                } else {
+                    super::noted(tx("Selection · {n} words", "Selección · {n} palabras").replace("{n}", &words.to_string()))
+                };
+                if chip(ui, "aiSpark", &label, t)
+                    .on_hover_text(tx(
+                        "I'll work on the selected text. Click to leave it out.",
+                        "Trabajaré sobre el texto seleccionado. Pulsa para no usarlo.",
+                    ))
+                    .clicked()
+                {
+                    *act = Some(Act::SkipSelection(sel.clone()));
+                }
             }
-            if app.ai.track_changes && chip(ui, "trackChanges", tx("Changes tracked", "Cambios marcados"), t).clicked() {
-                app.ai.track_changes = false;
+            if app.ai.settings.track_changes && chip(ui, "trackChanges", tx("Changes tracked", "Cambios marcados"), t).clicked() {
+                app.ai.settings.track_changes = false;
+                super::save_settings(app);
             }
         });
         ui.add_space(6.0);
@@ -505,6 +625,23 @@ fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
         .inner_margin(Margin { left: 12, right: 10, top: 10, bottom: 8 })
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
+            // The slash commands, while one is being typed.
+            let matches = slash_matches(&app.ai.input);
+            for &&(_, names, en, es) in &matches {
+                let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
+                if resp.hovered() {
+                    ui.painter().rect_filled(r, CornerRadius::same(8), t.hover);
+                }
+                ui.painter().text(pos2(r.min.x + 8.0, r.min.y + 7.0), egui::Align2::LEFT_TOP, super::note(names[0]), medium(12.5), t.accent_text);
+                ui.painter().text(pos2(r.min.x + 8.0, r.min.y + 24.0), egui::Align2::LEFT_TOP, tx(en, es), regular(11.0), t.text_dim);
+                if resp.clicked() {
+                    *act = Some(Act::Submit(names[0].to_string()));
+                    app.ai.input.clear();
+                }
+            }
+            if !matches.is_empty() {
+                ui.separator();
+            }
             if !app.ai.attachments.is_empty() {
                 let mut remove = None;
                 ui.horizontal_wrapped(|ui| {
@@ -520,7 +657,11 @@ fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
                 }
                 ui.add_space(4.0);
             }
-            let hint = txf("Message {name}…", "Escribe a {name}…", name(agent));
+            let hint = if sel.is_some() {
+                tx("Ask about the selection…", "Pide algo sobre la selección…").to_string()
+            } else {
+                txf("Message {name}… (/ for commands)", "Escribe a {name}… (/ para comandos)", name(agent))
+            };
             let edit = egui::ScrollArea::vertical().id_salt("ai_input_scroll").max_height(180.0).show(ui, |ui| {
                 ui.add(
                     egui::TextEdit::multiline(&mut app.ai.input)
@@ -547,7 +688,7 @@ fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
                     if menu_row(
                         ui,
                         tx("Attach files", "Adjuntar archivos"),
-                        tx("Documents, notes or pictures", "Documentos, notas o imágenes"),
+                        tx("Read as Markdown to save tokens", "Se leen como Markdown para ahorrar tokens"),
                         false,
                         t,
                         |p, r| icons::paint(p, r.shrink(4.0), "aiAttach", t.icon, t.accent),
@@ -559,32 +700,32 @@ fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
                     }
                     if menu_row(
                         ui,
-                        tx("Document design", "Diseño del documento"),
-                        tx("Cover, contents, colours and type", "Portada, índice, colores y tipografía"),
+                        tx("Design with AI", "Diseñar con IA"),
+                        tx("A new, different design each time", "Un diseño nuevo y distinto cada vez"),
                         false,
                         t,
                         |p, r| icons::paint(p, r.shrink(4.0), "aiDesign", t.icon, t.accent),
                     )
                     .clicked()
                     {
-                        *act = Some(Act::Studio);
+                        *act = Some(Act::Design);
                         ui.close();
                     }
-                    ui.separator();
-                    let sel = app.ai.selection_only;
                     if menu_row(
                         ui,
-                        tx("Selection only", "Solo la selección"),
-                        tx("Leave the rest of the document as it is", "No toca el resto del documento"),
-                        sel,
+                        tx("Colours and style", "Colores y estilo"),
+                        tx("What every design must keep", "Lo que todo diseño debe respetar"),
+                        false,
                         t,
-                        |p, r| icons::paint(p, r.shrink(4.0), "aiCheck", t.icon, t.accent),
+                        |p, r| icons::paint(p, r.shrink(4.0), "colors", t.icon, t.accent),
                     )
                     .clicked()
                     {
-                        app.ai.selection_only = !sel;
+                        app.ai.show_settings = true;
+                        ui.close();
                     }
-                    let track = app.ai.track_changes;
+                    ui.separator();
+                    let track = app.ai.settings.track_changes;
                     if menu_row(
                         ui,
                         tx("Track its changes", "Marcar sus cambios"),
@@ -595,7 +736,8 @@ fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
                     )
                     .clicked()
                     {
-                        app.ai.track_changes = !track;
+                        app.ai.settings.track_changes = !track;
+                        super::save_settings(app);
                     }
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -624,10 +766,15 @@ fn composer(app: &mut WordApp, ui: &mut Ui, t: &Tokens, act: &mut Option<Act>) {
             if (send_now || enter) && !busy && !app.ai.input.trim().is_empty() {
                 // The agent's edits go through the document: leave the keyboard to it.
                 edit.surrender_focus();
-                let text = app.ai.input.trim().to_string();
+                let mut text = app.ai.input.trim().to_string();
+                // A command typed in part runs the first one it matches.
+                if super::slash(&text).is_none()
+                    && let Some((_, names, _, _)) = matches.first()
+                {
+                    text = names[0].to_string();
+                }
                 app.ai.input.clear();
-                let ctx = ui.ctx().clone();
-                super::send(app, &ctx, &text, &text, None);
+                *act = Some(Act::Submit(text));
             }
         });
     ui.add_space(6.0);

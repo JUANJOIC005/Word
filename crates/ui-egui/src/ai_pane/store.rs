@@ -47,6 +47,13 @@ pub struct Conversation {
     pub messages: Vec<Msg>,
     /// The request of a task that was interrupted, for Continue.
     pub pending: Option<String>,
+    /// The design direction this document follows (`design::DIRECTIONS`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub design: Option<String>,
+    /// What `/compact` kept of the conversation so far: the next session starts from it instead
+    /// of the whole history.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
 }
 
 impl Conversation {

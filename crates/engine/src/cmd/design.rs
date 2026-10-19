@@ -57,12 +57,8 @@ pub fn specs() -> Vec<CommandSpec> {
             sel_result(s)
         })
         .params(r#"{"heading": string, "body"?: string}"#),
-        CommandSpec::new("design.themeColors", "Colors", "Design › Document Formatting", |s, v| {
-            let name = p::req_str(v, "name")?;
-            let t = THEMES.iter().find(|t| t.0.eq_ignore_ascii_case(name)).ok_or_else(|| CmdError::Params(format!("unknown colours `{name}`")))?;
-            set_accent(s, t.3[0]);
-            sel_result(s)
-        }),
+        CommandSpec::new("design.themeColors", "Colors", "Design › Document Formatting", theme_colors)
+            .params(r#"{"name"?: string, "colors"?: ["RRGGBB", …] (up to 6, the first colours the headings)}"#),
         CommandSpec::new("design.styleSet", "Style Set", "Design › Document Formatting", style_set)
             .params(r#"{"name": "default|basic|lines|shaded|casual|centered|minimalist|title"}"#),
         CommandSpec::new("design.paragraphSpacing", "Paragraph Spacing", "Design › Document Formatting", para_spacing)
@@ -123,6 +119,27 @@ fn set_accent(s: &mut Session, accent: Rgb) {
     if let Some(c) = s.doc.settings.theme_colors.get_mut(4) {
         *c = accent;
     }
+}
+
+/// A theme's colours by `name`, or the document's own `colors` (Word fork: the AI's palettes).
+fn theme_colors(s: &mut Session, v: &Value) -> CmdResult {
+    if let Some(list) = v.get("colors").and_then(Value::as_array) {
+        let colors: Vec<Rgb> = list.iter().filter_map(|c| c.as_str().and_then(Rgb::parse)).take(6).collect();
+        let Some(accent) = colors.first().copied() else {
+            return Err(CmdError::Params("colors: one to six RRGGBB colours".into()));
+        };
+        set_accent(s, accent);
+        for (i, c) in colors.iter().enumerate() {
+            if let Some(x) = s.doc.settings.theme_colors.get_mut(4 + i) {
+                *x = *c;
+            }
+        }
+        return sel_result(s);
+    }
+    let name = p::req_str(v, "name")?;
+    let t = THEMES.iter().find(|t| t.0.eq_ignore_ascii_case(name)).ok_or_else(|| CmdError::Params(format!("unknown colours `{name}`")))?;
+    set_accent(s, t.3[0]);
+    sel_result(s)
 }
 
 fn theme(s: &mut Session, v: &Value) -> CmdResult {
@@ -236,4 +253,23 @@ fn page_borders(s: &mut Session, v: &Value) -> CmdResult {
         s.doc.section_mut(block).page_borders = borders;
     }
     sel_result(s)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Word fork: the AI colours a document with its own palette; the first colour goes to the
+    /// headings and the list fills the accent slots.
+    #[test]
+    fn theme_colors_take_a_palette_of_the_documents_own() {
+        let mut s = Session::new(wordcraft_doc::Document::new());
+        s.run("design.themeColors", &json!({"colors": ["0B6E4F", "F2A541", "nope"]})).unwrap();
+        assert_eq!(s.doc.settings.theme_colors.get(4), Some(&Rgb(0x0B, 0x6E, 0x4F)));
+        assert_eq!(s.doc.settings.theme_colors.get(5), Some(&Rgb(0xF2, 0xA5, 0x41)));
+        let h1 = s.doc.styles.styles.iter().find(|st| st.id == "Heading1").and_then(|st| st.chr.color);
+        assert_eq!(h1, Some(TextColor::Rgb(Rgb(0x0B, 0x6E, 0x4F))));
+        assert!(s.run("design.themeColors", &json!({"colors": []})).is_err());
+        s.run("design.themeColors", &json!({"name": "Studio"})).unwrap();
+    }
 }
