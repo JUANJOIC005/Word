@@ -272,7 +272,6 @@ pub struct UiState {
     /// View › Navigation Pane: open or closed as the person left it, kept between runs (#2526).
     /// The session owns it while running (see [`WordApp::prefs`]).
     pub nav_pane: bool,
-    pub show_discord: bool,
     /// User name (File › Options) for comments and tracked changes; empty keeps the default.
     pub author: String,
     /// Desktop: the main window's size and position, restored at the next launch.
@@ -374,7 +373,6 @@ impl Default for UiState {
             legacy_dark: None,
             nav_tab: "headings".into(),
             nav_pane: false,
-            show_discord: true,
             author: String::new(),
             window: None,
             language: i18n::AUTO.into(),
@@ -527,7 +525,7 @@ pub struct WordApp {
     pub integrated_titlebar: bool,
     /// macOS: the title bar's height and where its content starts, around the traffic lights.
     pub mac_titlebar: chrome::MacTitleBar,
-    /// Word fork: the AI Assistant pane (Claude Code or Codex editing the document live).
+    /// Word fork: the AI tab's chat (Claude Code or Codex editing the document live).
     pub ai: ai_pane::AiPane,
     control_rx: Option<std::sync::mpsc::Receiver<ControlRequest>>,
     shot_token: u64,
@@ -1683,15 +1681,8 @@ impl WordApp {
                     "making Word the default app needs a click in File › Options › General; scripts and agents can't change system defaults".into(),
                 ));
             }
-            "ui.discord" => {
-                self.canvas.open_url = Some("https://discord.gg/artcraft".into());
-                json!({})
-            }
-            // Help › AI Assistant: `value` true or false shows or hides the pane; without it, toggles.
-            "ui.aiPane" => {
-                self.ai.open = p.get("value").and_then(Value::as_bool).unwrap_or(!self.ai.open);
-                json!({"open": self.ai.open})
-            }
+            // AI tab (Word fork): the chat with an agent, and Document Design.
+            "ui.aiPane" | "ui.aiStudio" => return Some(ai_pane::command(self, id, p)),
             "ui.caretAnimation" => {
                 // File › Options › Advanced › Animation: `value` true or false turns the caret's
                 // glide and fading blink on or off; no value reads it.
@@ -2620,7 +2611,7 @@ pub(crate) fn works_without_document(id: &str) -> bool {
             | "ui.openFileDialog"
             | "ui.fileBrowser"
             | "ui.makeDefaultApp"
-            | "ui.discord"
+            | "ui.aiPane"
             | "ui.caretAnimation"
             | "ui.startScreen"
     ) || id.starts_with("help.")
@@ -2980,7 +2971,7 @@ mod tests {
         for id in ["format.bold", "text.insert", "file.save", "file.saveAs", "file.print", "edit.paste", "insert.table", "ui.print"] {
             assert!(!widgets::enabled(a, id), "{id} is off with no document");
         }
-        for id in ["file.new", "file.open", "ui.backstage", "ui.tab", "ui.discord", "file.options", "ui.theme"] {
+        for id in ["file.new", "file.open", "ui.backstage", "ui.tab", "ui.aiPane", "file.options", "ui.theme"] {
             assert!(widgets::enabled(a, id), "{id} works with no document");
         }
         assert!(!chrome::qat_enabled(a, "file.save"));

@@ -450,6 +450,8 @@ fn main() -> eframe::Result {
                 app.mac_titlebar = bar;
             }
             let mut key_file = None;
+            // Word fork: each document's AI conversation is kept in the settings folder.
+            app.ai.store_dir = wordcraft_control_key::settings_dir().map(|d| d.join("ai"));
             if let Some(port) = control_port
                 && let Some((rx, file)) = control_server::start(port, cc.egui_ctx.clone(), wordcraft_control_key::settings_dir().as_deref())
             {

@@ -9,7 +9,7 @@ use crate::theme::{Tokens, medium, regular, semibold};
 use crate::widgets::{CONTENT_H, LABEL_H, big, big_toggle, group, menu_button, small, split};
 use crate::{WordApp, icons};
 
-pub const TABS: [&str; 13] = wordcraft_engine::ribbon::TABS;
+pub const TABS: [&str; 14] = wordcraft_engine::ribbon::TABS;
 
 /// True when the caret/selection touches a picture (#147).
 pub fn has_picture_selected(s: &wordcraft_engine::Session) -> bool {
@@ -481,7 +481,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
             // Right-click on the ribbon (outside a button): Customize Ribbon. Registered first, so
             // the buttons drawn over it keep their own clicks.
             // No document open (#1129): every command is greyed out but Help's.
-            if !app.has_document() && app.ui.tab != "Help" {
+            if !app.has_document() && app.ui.tab != "Help" && app.ui.tab != "AI" {
                 ui.disable();
             }
             let bg = ui.interact(ui.max_rect(), ui.id().with("ribbon_background"), Sense::click());
@@ -510,6 +510,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
                         "Developer" => developer(app, ui),
                         "Zotero" => zotero(app, ui),
                         "Help" => help(app, ui),
+                        "AI" => crate::ai_pane::ribbon(app, ui),
                         "Table Design" => table_design(app, ui),
                         "Table Layout" => table_layout(app, ui),
                         "Equation" if app.session.math.is_some() => crate::equation_tab::show(app, ui),
@@ -2229,11 +2230,8 @@ fn outlining(app: &mut WordApp, ui: &mut Ui) {
 fn help(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Help", None, app, |ui, app| {
         big(ui, app, "help", "Help", "ui.dialog", json!({"name": "about"}), false);
-        big(ui, app, "discord", "Community\nDiscord", "ui.discord", json!({}), false);
     });
     group(ui, "Agents", None, app, |ui, app| {
-        let open = app.ai.open;
-        big_toggle(ui, app, "editor", "AI", "ui.aiPane", open);
         big(ui, app, "macros", "Commands", "ui.dialog", json!({"name": "commands"}), false);
     });
 }
