@@ -1042,10 +1042,10 @@ fn cover_modern(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Resul
         p.props.borders = Some(wordcraft_doc::props::Borders { left: Some(bar), ..Default::default() });
         Block::Para(p)
     };
-    let mut blocks: Vec<Block> = empty_paras(10).collect();
+    let mut blocks: Vec<Block> = empty_paras(8).collect();
     blocks.push(barred(Paragraph::with_text(title, CharProps { size: Some(48.0), bold: Some(true), ..Default::default() })));
     blocks.push(barred(Paragraph::with_text(subtitle, CharProps { size: Some(18.0), color: Some(TextColor::Rgb(accent)), ..Default::default() })));
-    blocks.extend(empty_paras(10));
+    blocks.extend(empty_paras(7));
     blocks.push(Block::Para(Paragraph::with_text(author, CharProps { bold: Some(true), caps: Some(true), ..Default::default() })));
     blocks.push(cover_date(None, CharProps::default())?);
     Ok(blocks)
