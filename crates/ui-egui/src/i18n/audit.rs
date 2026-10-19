@@ -384,8 +384,10 @@ fn complete_catalogs_have_every_string_the_interface_looked_up(mut keys: std::co
     let mut report = String::new();
     for code in ["ru", "hu", "tr", "bg", "it", "sv", "hr", "pl"] {
         let lang = super::Lang::from_code(code).unwrap_or(super::Lang::EN);
-        let missing: Vec<&String> =
-            keys.iter().filter(|s| words(s) && !super::has(lang, s) && !numbered(s) && !same(s) && !script_error(s)).collect();
+        let missing: Vec<&String> = keys
+            .iter()
+            .filter(|s| words(s) && !super::has(lang, s) && !numbered(s) && !same(s) && !script_error(s) && !crate::ai_pane::drew(s))
+            .collect();
         if !missing.is_empty() {
             report.push_str(&format!("{} strings have no {code} entry:\n{missing:#?}\n", missing.len()));
         }

@@ -248,8 +248,8 @@ pub fn ribbon(app: &mut WordApp, ui: &mut egui::Ui) {
     use crate::widgets::{big, big_toggle_with, group, small};
     let (open, agent) = (app.ai.open, app.ai.agent());
     group(ui, tx("Assistant", "Asistente"), None, app, |ui, app| {
-        big_toggle_with(ui, app, "aiClaude", "Claude", "ui.aiPane", json!({"agent": "claude"}), open && agent == Agent::Claude);
-        big_toggle_with(ui, app, "aiCodex", "Codex", "ui.aiPane", json!({"agent": "codex"}), open && agent == Agent::Codex);
+        big_toggle_with(ui, app, "aiClaude", note("Claude"), "ui.aiPane", json!({"agent": "claude"}), open && agent == Agent::Claude);
+        big_toggle_with(ui, app, "aiCodex", note("Codex"), "ui.aiPane", json!({"agent": "codex"}), open && agent == Agent::Codex);
     });
     group(ui, tx("Document", "Documento"), None, app, |ui, app| {
         big(ui, app, "aiDesign", tx("Document\nDesign", "Diseño del\ndocumento"), "ui.aiStudio", json!({}), false);
