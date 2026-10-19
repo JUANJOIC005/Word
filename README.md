@@ -21,19 +21,24 @@
 - Aplicación de escritorio (Linux, Windows) y herramienta de línea de comandos `word-cli`.
 - Interfaz y motor 100 % Rust (egui/wgpu); sin servicios en la nube.
 
-## Asistente IA (propio de este fork)
+## IA (propio de este fork)
 
-**Ayuda › Asistente IA** abre un panel lateral para que **Claude Code** o **Codex** escriban y editen
-en directo el documento abierto:
+La pestaña **IA**, junto a Ayuda, tiene dos botones para elegir el agente — **Claude** (Claude Code) o
+**Codex** — que abren un chat dedicado donde el agente escribe y edita en directo el documento abierto:
 
-- Crear un documento desde cero (en blanco, carta, currículum o informe) a partir de una descripción.
-- Adjuntar archivos (texto, PDF, imágenes…) que el agente lee; las imágenes se pueden insertar.
-- Acciones rápidas: resumir, corregir, mejorar formato, tabla de contenido, seguir escribiendo, traducir.
-- Opciones: modelo de Claude, trabajar solo sobre la selección y marcar sus cambios con control de cambios.
+- Chat limpio: solo tus mensajes y sus respuestas; mientras trabaja, una línea en vivo dice qué hace
+  («Escribiendo», «Diseñando la portada»…) sin mostrar herramientas ni pasos técnicos.
+- Adjunta archivos (texto, PDF, imágenes) desde el botón **+**; el agente los lee y puede insertar imágenes.
+- **Diseño del documento**: portada (clásica, banda, minimalista, moderna), paleta y tipografía,
+  índice, numeración, encabezado y espaciado, con vista previa. Se aplica al instante sin gastar tokens.
+- Continuidad: cada documento guarda su conversación y la sesión del agente; si una tarea se detiene
+  (o se cierra la app), **Continuar** sigue donde se quedó sin repetir lo hecho.
+- Ahorro de tokens: prompt de sistema propio y corto, solo las herramientas del documento, sesiones
+  reanudadas y modelo Automático (Sonnet) por defecto; Opus y Haiku a un clic.
 
 Usa tu propia instalación de `claude` o `codex` (tu cuenta y tu plan). La app arranca su canal de
 control local y conecta el agente con `word-cli mcp --connect`; el código está en
-`crates/ui-egui/src/ai_pane.rs`.
+`crates/ui-egui/src/ai_pane/`.
 
 ## Descargar e instalar
 

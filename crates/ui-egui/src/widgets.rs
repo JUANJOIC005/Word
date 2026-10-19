@@ -223,6 +223,11 @@ pub fn big_toggle(ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, id: &
     big_button(ui, app, icon, label, id, Value::Object(Default::default()), false, checked)
 }
 
+/// [`big_toggle`] that runs its command with `params` (Word fork: the AI tab's agent buttons).
+pub fn big_toggle_with(ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, id: &str, params: Value, checked: bool) -> Response {
+    big_button(ui, app, icon, label, id, params, false, checked)
+}
+
 /// Size of the drop-down marker drawn after a label or beside a split button (#659: one marker,
 /// the `dropdown` icon, everywhere; no text glyph).
 pub const DROPDOWN: f32 = 10.0;

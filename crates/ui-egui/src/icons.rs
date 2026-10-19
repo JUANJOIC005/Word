@@ -1272,17 +1272,137 @@ pub fn paint(p: &Painter, r: Rect, name: &str, c: Color32, accent: Color32) {
             pen.line(&[(4.0, 4.0), (9.0, 10.0), (4.0, 16.0)]);
             pen.line(&[(11.0, 4.0), (16.0, 10.0), (11.0, 16.0)]);
         }
+        // Word fork, AI tab and pane: the agents' marks (an orange starburst for Claude, a prompt
+        // in a hexagon for Codex) and the pane's own glyphs.
+        "aiClaude" => {
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 2.3 };
+            let orange = Color32::from_rgb(0xD9, 0x77, 0x57);
+            for i in 0..12 {
+                let ang = i as f32 * std::f32::consts::PI / 6.0;
+                let len = if i % 2 == 0 { 8.0 } else { 5.5 };
+                let (s, co) = ang.sin_cos();
+                thick.line_c(&[(10.0 + 1.5 * co, 10.0 + 1.5 * s), (10.0 + len * co, 10.0 + len * s)], orange);
+            }
+        }
+        "aiCodex" => {
+            let hex: Vec<(f32, f32)> = (0..6)
+                .map(|i| {
+                    let (s, co) = (i as f32 * std::f32::consts::PI / 3.0 + std::f32::consts::PI / 6.0).sin_cos();
+                    (10.0 + 8.0 * co, 10.0 + 8.0 * s)
+                })
+                .collect();
+            pen.closed(&hex, c);
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 1.8 };
+            thick.line_c(&[(6.8, 7.3), (9.5, 10.0), (6.8, 12.7)], a);
+            thick.line_c(&[(10.8, 12.9), (13.8, 12.9)], a);
+        }
+        "aiSpark" => {
+            pen.fill(&[(10.0, 2.0), (12.0, 10.0), (10.0, 18.0), (8.0, 10.0)], a);
+            pen.fill(&[(2.0, 10.0), (10.0, 8.0), (18.0, 10.0), (10.0, 12.0)], a);
+            pen.fill(&[(15.5, 1.5), (16.3, 4.0), (15.5, 6.5), (14.7, 4.0)], a);
+            pen.fill(&[(13.0, 4.0), (15.5, 3.2), (18.0, 4.0), (15.5, 4.8)], a);
+        }
+        "aiDesign" => {
+            pen.rect(4.0, 2.5, 16.0, 17.5, c);
+            pen.frect(4.0, 2.5, 16.0, 7.5, a);
+            pen.lines(6.5, 13.5, &[10.5, 13.0, 15.5]);
+        }
+        "aiCover" => {
+            pen.page(4.0, 2.5, 16.0, 17.5);
+            pen.frect(5.5, 7.0, 14.5, 9.5, a);
+            pen.line(&[(5.5, 12.0), (11.0, 12.0)]);
+        }
+        "aiToc" => {
+            pen.line(&[(3.5, 5.0), (12.0, 5.0)]);
+            pen.line(&[(5.5, 9.5), (12.0, 9.5)]);
+            pen.line(&[(5.5, 14.0), (12.0, 14.0)]);
+            for y in [5.0, 9.5, 14.0] {
+                pen.fcircle(15.5, y, 1.1, a);
+            }
+        }
+        "aiSend" => {
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 2.2 };
+            thick.line(&[(10.0, 16.0), (10.0, 4.5)]);
+            thick.line(&[(5.0, 9.5), (10.0, 4.5), (15.0, 9.5)]);
+        }
+        "aiStop" => pen.frect(6.0, 6.0, 14.0, 14.0, c),
+        "aiPlus" => {
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 1.8 };
+            thick.line(&[(10.0, 4.0), (10.0, 16.0)]);
+            thick.line(&[(4.0, 10.0), (16.0, 10.0)]);
+        }
+        "aiAttach" => pen.line(&[
+            (7.0, 8.0),
+            (7.0, 14.0),
+            (8.2, 16.2),
+            (10.0, 16.8),
+            (11.8, 16.2),
+            (13.0, 14.0),
+            (13.0, 6.0),
+            (12.2, 4.0),
+            (10.5, 3.3),
+            (9.0, 4.0),
+            (8.5, 6.0),
+            (8.5, 13.0),
+            (9.3, 14.3),
+            (10.7, 14.3),
+            (11.5, 13.0),
+            (11.5, 8.0),
+        ]),
+        "aiNewChat" => {
+            pen.line(&[(10.0, 4.0), (4.0, 4.0), (4.0, 16.0), (16.0, 16.0), (16.0, 10.0)]);
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 1.8 };
+            thick.line_c(&[(9.0, 11.0), (16.5, 3.5)], a);
+        }
+        "aiWrite" => {
+            pen.closed(&[(13.0, 3.5), (16.5, 7.0), (7.0, 16.5), (3.5, 16.5), (3.5, 13.0)], c);
+            pen.line_c(&[(11.5, 5.0), (15.0, 8.5)], a);
+        }
+        "aiProof" => {
+            pen.line(&[(3.0, 5.0), (14.0, 5.0)]);
+            pen.line(&[(3.0, 9.0), (10.0, 9.0)]);
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 2.0 };
+            thick.line_c(&[(8.5, 13.5), (11.5, 16.5), (17.0, 10.5)], a);
+        }
+        "aiSummary" => {
+            pen.lines(3.0, 17.0, &[4.5, 8.5]);
+            pen.line(&[(3.0, 12.5), (12.0, 12.5)]);
+            pen.frect(3.0, 15.0, 8.0, 16.6, a);
+        }
+        "aiTranslate" => {
+            pen.rect(2.5, 3.0, 11.5, 10.5, c);
+            pen.rect(8.5, 9.5, 17.5, 17.0, a);
+            pen.text(7.0, 6.8, 7.0, "A", c, true);
+            pen.text(13.0, 13.3, 7.0, "B", a, true);
+        }
+        "aiCheck" => {
+            let thick = Pen { p: pen.p, r: pen.r, c, a, w: 2.0 };
+            thick.line(&[(5.0, 10.5), (8.5, 14.0), (15.0, 6.5)]);
+        }
+        "aiPause" => {
+            pen.frect(6.0, 5.0, 8.5, 15.0, c);
+            pen.frect(11.5, 5.0, 14.0, 15.0, c);
+        }
+        "aiInsert" => {
+            pen.rect(7.0, 3.0, 17.0, 17.0, c);
+            pen.line_c(&[(2.0, 10.0), (11.0, 10.0)], a);
+            pen.line_c(&[(8.0, 7.0), (11.0, 10.0), (8.0, 13.0)], a);
+        }
+        "aiFile" => {
+            pen.page(5.0, 2.5, 15.0, 17.5);
+            pen.lines(7.0, 13.0, &[9.0, 11.5, 14.0]);
+        }
+        "aiChevron" => pen.line(&[(6.0, 8.0), (10.0, 12.0), (14.0, 8.0)]),
+        "aiArrow" => {
+            pen.line(&[(4.5, 10.0), (15.5, 10.0)]);
+            pen.line(&[(11.0, 5.5), (15.5, 10.0), (11.0, 14.5)]);
+        }
         "addins" => {
             pen.rect(3.0, 3.0, 9.0, 9.0, c);
             pen.rect(11.0, 3.0, 17.0, 9.0, c);
             pen.rect(3.0, 11.0, 9.0, 17.0, c);
             pen.line_c(&[(14.0, 11.0), (14.0, 17.0)], a);
             pen.line_c(&[(11.0, 14.0), (17.0, 14.0)], a);
-        }
-        "discord" => {
-            pen.fill(&[(3.0, 6.0), (7.0, 3.5), (13.0, 3.5), (17.0, 6.0), (17.5, 14.0), (13.5, 16.5), (6.5, 16.5), (2.5, 14.0)], a);
-            pen.fcircle(7.5, 10.5, 1.5, Color32::WHITE);
-            pen.fcircle(12.5, 10.5, 1.5, Color32::WHITE);
         }
         // Open: a folder with its flap lifted.
         "open" => {
