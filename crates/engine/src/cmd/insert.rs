@@ -1142,10 +1142,10 @@ fn cover_bold(title: &str, subtitle: &str, author: &str, accent: Rgb) -> Result<
         p.props.indent_right = Some(24.0);
         Block::Para(p)
     };
-    let mut blocks: Vec<Block> = (0..8).map(|_| shaded(Paragraph::new())).collect();
+    let mut blocks: Vec<Block> = (0..6).map(|_| shaded(Paragraph::new())).collect();
     blocks.push(shaded(Paragraph::with_text(title, CharProps { size: Some(46.0), bold: Some(true), color: white, ..Default::default() })));
     blocks.push(shaded(Paragraph::with_text(subtitle, CharProps { size: Some(16.0), color: white, ..Default::default() })));
-    blocks.extend((0..8).map(|_| shaded(Paragraph::new())));
+    blocks.extend((0..6).map(|_| shaded(Paragraph::new())));
     blocks.push(shaded(Paragraph::with_text(
         author,
         CharProps { bold: Some(true), caps: Some(true), spacing: Some(1.5), color: white, ..Default::default() },
