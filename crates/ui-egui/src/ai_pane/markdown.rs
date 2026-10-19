@@ -246,11 +246,14 @@ mod tests {
 
     #[test]
     fn inline_marks_become_spans_and_stray_ones_stay_text() {
+        assert_eq!(
+            spans("Un **título** y `code` y 2 * 3"),
+            [(Span::Plain, "Un "), (Span::Bold, "título"), (Span::Plain, " y "), (Span::Code, "code"), (Span::Plain, " y 2 *"), (Span::Plain, " 3")]
+        );
         let t = Tokens::light();
         let mut job = LayoutJob::default();
-        inline(&mut job, "Un **título** y `code` y 2 * 3", &regular(13.0), t.text, &t);
-        assert_eq!(job.text, "Un título y code y 2 * 3");
-        assert_eq!(job.sections.len(), 6);
+        inline(&mut job, "Un **título** y *nota*", &regular(13.0), t.text, &t);
+        assert_eq!(job.text, "Un título y nota");
     }
 
     #[test]

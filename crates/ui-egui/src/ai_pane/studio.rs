@@ -368,8 +368,8 @@ fn theme_card(ui: &mut Ui, st: &mut Studio, i: usize, t: &Tokens) {
         };
         ui.painter().rect_filled(cell, round, rgb(*c));
     }
-    ui.painter().text(pos2(r.min.x + 12.0, r.min.y + 34.0), egui::Align2::LEFT_TOP, theme.0, medium(12.0), t.text);
-    ui.painter().text(pos2(r.max.x - 12.0, r.min.y + 35.0), egui::Align2::RIGHT_TOP, theme.1, regular(10.5), t.text_dim);
+    ui.painter().text(pos2(r.min.x + 12.0, r.min.y + 34.0), egui::Align2::LEFT_TOP, super::noted(theme.0.to_string()), medium(12.0), t.text);
+    ui.painter().text(pos2(r.max.x - 12.0, r.min.y + 35.0), egui::Align2::RIGHT_TOP, super::noted(theme.1.to_string()), regular(10.5), t.text_dim);
     if resp.clicked() {
         st.theme = i;
     }
