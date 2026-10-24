@@ -10,7 +10,7 @@
 </p>
 
 > **Fork personal.** Este repositorio es una copia independiente de
-> [storytold/wordcraft](https://github.com/storytold/wordcraft) (versión 0.8.0 como base) con
+> [storytold/wordcraft](https://github.com/storytold/wordcraft) (sincronizado con la versión 0.10.0) con
 > la identidad visible cambiada a **Word**, icono propio y compilaciones automáticas en GitHub Actions.
 > No está afiliado a Microsoft ni al equipo original. «Word» aquí es solo el nombre de este fork; el icono
 > es original y no usa la marca de Microsoft Word.

@@ -22,6 +22,7 @@ pub struct FieldCtx {
     pub title: Arc<str>,
     pub author: Arc<str>,
     pub filename: Arc<str>,
+    pub filepath: Arc<str>,
     /// Body paragraphs for STYLEREF fields in headers and footers, and where the page being
     /// drawn is among them (set only while laying out headers and footers that need it).
     pub styleref: Option<(Arc<crate::styleref::StyleIndex>, crate::styleref::At)>,
@@ -63,8 +64,8 @@ impl FieldCtx {
         self.page_from.iter().rev().find(|(from, _)| *from <= off).map_or(self.page, |(_, page)| *page)
     }
     /// A key for caches: the parts of the context a page-dependent paragraph depends on.
-    pub fn page_key(&self) -> (u32, u32, u32, u32, u64) {
-        (self.page, self.pages, self.section_pages, self.section, self.bookmarks_key)
+    pub fn page_key(&self) -> (u32, u32, u32, u32, u64, NumFormat) {
+        (self.page, self.pages, self.section_pages, self.section, self.bookmarks_key, self.page_format)
     }
     /// A key for caches of paragraph `p` with STYLEREF fields (0 when they show their stored
     /// result): a hash of the results its STYLEREF fields have on this page, so an edit to body
@@ -180,7 +181,16 @@ pub fn field_text_on(instr: &str, result: &str, ctx: &FieldCtx, page: u32) -> (S
         },
         "TITLE" if result.is_empty() => (ctx.title.to_string(), false),
         "AUTHOR" if result.is_empty() => (ctx.author.to_string(), false),
-        "FILENAME" if result.is_empty() => (ctx.filename.to_string(), false),
+        "FILENAME" if result.is_empty() => {
+            let text = if has_switch(instr, 'p') && !ctx.filepath.is_empty() {
+                ctx.filepath.to_string()
+            } else if !ctx.filename.is_empty() {
+                ctx.filename.to_string()
+            } else {
+                "Document1".into()
+            };
+            (text, false)
+        }
         // ASK and SET only assign text to a bookmark: they never show a result (ECMA-376 §17.16.5).
         "ASK" | "SET" => (String::new(), false),
         "STYLEREF" => match &ctx.styleref {
@@ -241,6 +251,19 @@ mod tests {
         for instr in ["", "REF", r"REF \h", r#"REF "" \h"#, r#"REF "mark \h"#, r"REF mark \hidden", r"NOTEREF mark \h", r#"REF mark \d "\h""#] {
             assert_eq!(reference_link(instr), None, "{instr}");
         }
+    }
+
+    #[test]
+    fn filename_field() {
+        let ctx = FieldCtx { filename: "report.docx".into(), filepath: "/home/user/docs/report.docx".into(), ..Default::default() };
+        assert_eq!(field_text("FILENAME", "", &ctx), ("report.docx".into(), false));
+        assert_eq!(field_text(r"FILENAME \p", "", &ctx), ("/home/user/docs/report.docx".into(), false));
+        assert_eq!(field_text(r"FILENAME \* MERGEFORMAT", "", &ctx), ("report.docx".into(), false));
+        assert_eq!(field_text("FILENAME", "cached.docx", &ctx), ("cached.docx".into(), false));
+
+        let def_ctx = FieldCtx::default();
+        assert_eq!(field_text("FILENAME", "", &def_ctx), ("Document1".into(), false));
+        assert_eq!(field_text(r"FILENAME \p", "", &def_ctx), ("Document1".into(), false));
     }
 
     #[test]
