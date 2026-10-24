@@ -1,6 +1,7 @@
 //! Graphics instance configuration applied before wgpu can initialize any driver: Windows
 //! backends and the DirectX 12 shader compiler, and the Intel Mac indirect-validation skip.
-// On macOS only the indirect-validation items are used outside tests.
+// On macOS only the indirect-validation items are used outside tests. Elsewhere it is the other
+// way round, so those two carry their own `allow`.
 #![cfg_attr(target_os = "macos", allow(dead_code))]
 
 use eframe::{

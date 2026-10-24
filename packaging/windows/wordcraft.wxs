@@ -33,8 +33,8 @@
 
     <Icon Id="WordcraftIcon.ico" SourceFile="$(var.IconPath)" />
     <Property Id="ARPPRODUCTICON" Value="WordcraftIcon.ico" />
-    <Property Id="ARPURLINFOABOUT" Value="https://getartcraft.com/apps/wordcraft" />
-    <Property Id="ARPURLUPDATEINFO" Value="https://getartcraft.com/apps/wordcraft" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/JUANJOIC005/Word" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/JUANJOIC005/Word/releases" />
     <Property Id="ARPHELPLINK" Value="https://github.com/JUANJOIC005/Word" />
 
     <!-- Installer UI (#198): WixUI_Minimal is welcome + license, progress, then a finish page so
