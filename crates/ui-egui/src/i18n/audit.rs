@@ -169,6 +169,7 @@ impl Exempt {
         let initials = plain.chars().count() == 2 && plain.chars().all(|c| c.is_ascii_uppercase());
         icon_lettering // drawn inside icons
             || initials // the account button
+            || crate::ai_pane::drew(text) // bilingual text owned by this fork's AI pane
             || status
             || theme_fonts
             || is_shortcut()
